@@ -4,7 +4,6 @@ getconf
 **v0.4.0**
 
 Go package to load configuration variables from OS environment, command line and/or a remote backend (still not supported).
-[etcd](https://github.com/coreos/etcd) server.
 
 ## Requirements
 
@@ -139,4 +138,12 @@ The variable name will be set from the struct name or from the first field of th
 Command line flags are standard variables from the _go_ **flag** package. As before, the variable name will be set from the struct name or from the first field of the tag if it exists.
 
 In command line, a _boolean_ flag acts as a switch, that is, it will take the value of **true** if present and **false** otherwise. You can force a boolean flag to _false_.
+
+# Roadmap
+
+- [x] Read variables from flags in command line
+- [x] Read variables from environment
+- [ ] Implement remote config service by way of [libkv](https://github.com/docker/libkv)
+- [ ] Add test cases
+- [ ] Add documentation
 
