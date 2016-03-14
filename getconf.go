@@ -283,20 +283,3 @@ func getTypedValue(opt string, t reflect.Kind) interface{} {
 	}
 	return nil
 }
-
-type Provider interface {
-	RegisterBool(name string, value bool, usage string) error
-
-	LoadAll() error
-}
-
-type EnvProvider struct {
-	Prefix string
-}
-
-func (ep *EnvProvider) RegisterBool(name string, value bool, usage string) error {
-	return nil
-}
-func (ep *EnvProvider) LoadAll() error {
-	return nil
-}
