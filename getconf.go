@@ -34,6 +34,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/docker/libkv/store"
 )
 
 var (
@@ -66,9 +68,9 @@ func (o *Option) IsBoolFlag() bool {
 }
 
 type GetConf struct {
-	providers []Provider
-	options   map[string]*Option
-	mu        sync.RWMutex
+	KVStore store.Store
+	options map[string]*Option
+	mu      sync.RWMutex
 }
 
 type GetConfOptions struct {
@@ -80,31 +82,31 @@ type GetConfOptions struct {
 }
 
 // env then flags then remote (etcd, consul)
-func New(setName string, clientStruct interface{}) (*GetConf, error) {
+func New(setName string, clientStruct interface{}) *GetConf {
 	opts := &GetConfOptions{ConfigStruct: clientStruct, EnableFlag: true}
 	if setName != "" {
 		opts.SetName = setName
 		opts.EnableEnv = true
 		opts.EnvPrefix = setName
 	}
-	g, err := NewWithOptions(opts)
-	return g, err
+	g := NewWithOptions(opts)
+	return g
 }
 
-func NewWithOptions(opts *GetConfOptions) (*GetConf, error) {
+func NewWithOptions(opts *GetConfOptions) *GetConf {
+	g := &GetConf{}
 	elem := reflect.ValueOf(opts.ConfigStruct).Elem()
 	if elem.Kind() == reflect.Invalid {
-		return nil, ErrUninitializedStruct
+		return g
 	}
 	if elem.Kind() != reflect.Struct {
-		return nil, ErrNotStructPointer
+		return g
 	}
 
-	g := &GetConf{}
 	g.options = make(map[string]*Option)
 	// Parse client struct
 	if err := g.parseStruct(elem); err != nil {
-		return nil, err
+		return g
 	}
 
 	// Check env
@@ -122,7 +124,7 @@ func NewWithOptions(opts *GetConfOptions) (*GetConf, error) {
 		flagConfigSet.Visit(g.setConfigFromFlag)
 	}
 
-	return g, nil
+	return g
 }
 
 // parseStruct parses the struct provided and load the options array in the GetConf object
