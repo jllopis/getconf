@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/jllopis/getconf"
 )
@@ -23,10 +24,17 @@ var (
 
 func main() {
 	var err error
-	conf, err = getconf.New("test", &Config{})
+	conf, err = getconf.New("test", &Config{}).EnableKVStore(&getconf.KVOptions{
+		Backend: "consul",
+		URLs:    []string{"b2d:8500"},
+		KVConfig: &getconf.Config{
+			ConnectionTimeout: 10 * time.Second,
+		},
+	})
 	if err != nil {
 		log.Panicf("cannot get GetConf. getconf error: %v\n", err)
 	}
+
 	fmt.Println("Starting test app...")
 
 	fmt.Println(conf)
@@ -39,5 +47,11 @@ func main() {
 	for k, v := range o {
 		fmt.Printf("\tKey: %s - Value: %v\n", k, v)
 	}
+
+	fmt.Println("Testing Consul:")
+	e, err := conf.KVStore.Exists("backend")
+	fmt.Printf("Backend?: %v\n", e)
+	fmt.Printf("Backend Error?: %v\n", err)
+
 	fmt.Println("Quitting test app")
 }
