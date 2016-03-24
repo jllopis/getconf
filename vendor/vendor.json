@@ -1,0 +1,43 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "bOO/7ugQ7KwqdU5ftNAAXKk1GRI=",
+			"path": "github.com/docker/libkv",
+			"revision": "a8688a234c090b39531dee4793f535dfab68e337",
+			"revisionTime": "2016-03-15T23:26:50-07:00"
+		},
+		{
+			"checksumSHA1": "2dcenRwtigRJjNuQHAcInk8X6JE=",
+			"path": "github.com/docker/libkv/store",
+			"revision": "a8688a234c090b39531dee4793f535dfab68e337",
+			"revisionTime": "2016-03-15T23:26:50-07:00"
+		},
+		{
+			"checksumSHA1": "PdTAxIdnMDt1Sv6uK38q/8sGHXg=",
+			"path": "github.com/docker/libkv/store/consul",
+			"revision": "a8688a234c090b39531dee4793f535dfab68e337",
+			"revisionTime": "2016-03-15T23:26:50-07:00"
+		},
+		{
+			"checksumSHA1": "/UnzPqiJuYcOLNp4Xc8GRwefJq0=",
+			"path": "github.com/hashicorp/consul/api",
+			"revision": "77ad084229d9355d009b52d4bfd2cfdf4af373b5",
+			"revisionTime": "2016-03-23T14:33:20-07:00"
+		},
+		{
+			"checksumSHA1": "fSe5y1UgTDeYlnFfUcDA1zzcw+U=",
+			"path": "github.com/hashicorp/go-cleanhttp",
+			"revision": "875fb671b3ddc66f8e2f0acc33829c8cb989a38d",
+			"revisionTime": "2016-02-17T16:48:20-05:00"
+		},
+		{
+			"checksumSHA1": "4+Hm+kHM6jPeYOBrXriWcIp0+HY=",
+			"path": "github.com/hashicorp/serf/coordinate",
+			"revision": "598c54895cc5a7b1a24a398d635e8c0ea0959870",
+			"revisionTime": "2016-03-17T12:36:12-07:00"
+		}
+	],
+	"rootPath": "github.com/jllopis/getconf"
+}
