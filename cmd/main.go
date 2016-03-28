@@ -29,6 +29,8 @@ func main() {
 		URLs:    []string{"b2d:8500"},
 		KVConfig: &getconf.Config{
 			ConnectionTimeout: 10 * time.Second,
+			Bucket:            "test",
+			PersistConnection: true,
 		},
 	})
 	if err != nil {
@@ -48,10 +50,19 @@ func main() {
 		fmt.Printf("\tKey: %s - Value: %v\n", k, v)
 	}
 
-	fmt.Println("Testing Consul:")
-	e, err := conf.KVStore.Exists("backend")
-	fmt.Printf("Backend?: %v\n", e)
-	fmt.Printf("Backend Error?: %v\n", err)
+	//	fmt.Println("Testing Consul:")
+	//	for _, item := range []string{"test/backend", "test/debug"} {
+	//		if e, err := conf.KVStore.Exists(item); err == nil && e {
+	//			pair, err := conf.KVStore.Get(item)
+	//			if err != nil {
+	//				fmt.Errorf("Error trying accessing value at key: %v", item)
+	//			}
+	//			fmt.Printf("GOT: %#+v\n", pair)
+	//			fmt.Printf("Key: %s, Value: %s\n", pair.Key, pair.Value)
+	//		} else {
+	//			fmt.Printf("Key %v not found\n", item)
+	//		}
+	//	}
 
 	fmt.Println("Quitting test app")
 }
