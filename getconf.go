@@ -41,6 +41,8 @@ import (
 var (
 	ErrNotStructPointer    = errors.New("initializer is not a pointer to struct")
 	ErrUninitializedStruct = errors.New("uninitialized struct")
+
+	setName string
 )
 
 type Option struct {
@@ -94,6 +96,7 @@ func New(setName string, clientStruct interface{}) *GetConf {
 }
 
 func NewWithOptions(opts *GetConfOptions) *GetConf {
+	setName = opts.SetName
 	g := &GetConf{}
 	elem := reflect.ValueOf(opts.ConfigStruct).Elem()
 	if elem.Kind() == reflect.Invalid {
@@ -125,6 +128,10 @@ func NewWithOptions(opts *GetConfOptions) *GetConf {
 	}
 
 	return g
+}
+
+func (g *GetConf) GetSetName() string {
+	return setName
 }
 
 // parseStruct parses the struct provided and load the options array in the GetConf object

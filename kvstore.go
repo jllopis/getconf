@@ -66,5 +66,40 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	default:
 		return gc, errors.New("unknown backend")
 	}
+
+	// Read options from KV Store
+	loadFromKV(gc, opts)
+
 	return gc, nil
+}
+
+func loadFromKV(gc *GetConf, opts *KVOptions) {
+	for _, o := range gc.options {
+		val := getKV(gc.KVStore, gc.GetSetName(), opts.KVConfig.Bucket, o.name)
+		if val != "" {
+			gc.setOption(o.name, val, "kvstore")
+		}
+	}
+}
+
+func getKV(kvs store.Store, setName, bucket, key string) string {
+	var prefix string
+	if setName != "" {
+		prefix = setName
+	}
+	if bucket != "" {
+		prefix = prefix + "/" + bucket
+		if prefix[len(prefix)-1] != '/' {
+			prefix += "/"
+		}
+	}
+
+	if e, err := kvs.Exists(prefix + key); err == nil && e {
+		pair, err := kvs.Get(prefix + key)
+		if err != nil {
+			return ""
+		}
+		return string(pair.Value)
+	}
+	return ""
 }
