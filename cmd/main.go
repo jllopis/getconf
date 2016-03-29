@@ -9,9 +9,11 @@ import (
 )
 
 type Config struct {
-	Backend  string `getconf:"default etcd, info backend to use"`
-	Debug    bool   `getconf:"debug, default false, info enable debug logging"`
-	IgnoreMe int    `getconf:"-"`
+	Backend  string  `getconf:"default etcd, info backend to use"`
+	Debug    bool    `getconf:"debug, default false, info enable debug logging"`
+	MyInt    int     `getconf:"integer, info test int setting"`
+	Pi       float64 `getconf:"pi, info value of PI"`
+	IgnoreMe int     `getconf:"-"`
 }
 
 func init() {
@@ -50,19 +52,27 @@ func main() {
 		fmt.Printf("\tKey: %s - Value: %v\n", k, v)
 	}
 
-	//	fmt.Println("Testing Consul:")
-	//	for _, item := range []string{"test/backend", "test/debug"} {
-	//		if e, err := conf.KVStore.Exists(item); err == nil && e {
-	//			pair, err := conf.KVStore.Get(item)
-	//			if err != nil {
-	//				fmt.Errorf("Error trying accessing value at key: %v", item)
-	//			}
-	//			fmt.Printf("GOT: %#+v\n", pair)
-	//			fmt.Printf("Key: %s, Value: %s\n", pair.Key, pair.Value)
-	//		} else {
-	//			fmt.Printf("Key %v not found\n", item)
-	//		}
-	//	}
+	fmt.Println("Testing Consul:")
+	var b []byte
+	for _, item := range []string{"test/test/Backend", "test/test/debug", "test/test/integer", "test/test/pi"} {
+		if e, err := conf.KVStore.Exists(item); err == nil && e {
+			pair, err := conf.KVStore.Get(item)
+			if err != nil {
+				fmt.Errorf("Error trying accessing value at key: %v", item)
+			}
+			fmt.Printf("GOT: %#+v\n", pair)
+			b = pair.Value
+			fmt.Printf("Key: %s, Value: %s\n", pair.Key, b)
+		} else {
+			fmt.Printf("Key %v not found\n", item)
+		}
+	}
 
+	fmt.Println("Testing watch on integer")
+	stopCh := make(chan struct{})
+	conf.MonitFunc("test/test/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
+	time.Sleep(20 * time.Second)
+	stopCh <- struct{}{}
+	time.Sleep(1 * time.Second)
 	fmt.Println("Quitting test app")
 }
