@@ -283,12 +283,12 @@ func getTypedValue(opt string, t reflect.Kind) interface{} {
 		}
 		return 0
 	case reflect.Bool:
-		if value, err := strconv.ParseBool(opt); err == nil {
+		if value, err := strconv.ParseBool(string(opt)); err == nil {
 			return value
 		}
 		return false
 	case reflect.String:
-		return opt
+		return string(opt)
 	}
 	return nil
 }

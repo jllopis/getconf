@@ -3,6 +3,7 @@ package getconf
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -71,6 +72,32 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	loadFromKV(gc, opts)
 
 	return gc, nil
+}
+
+func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan struct{}) error {
+	// watch value
+	if e, err := gc.KVStore.Exists(key); err != nil || !e {
+		if err != nil {
+			return err
+		}
+		return errors.New("key does not exist in KV store")
+	}
+	evt, err := gc.KVStore.Watch(key, stopCh)
+	if err != nil {
+		return err
+	}
+	// if changed, exec func
+	go func(stop <-chan struct{}) {
+		for {
+			select {
+			case pair := <-evt:
+				f(string(pair.Value))
+			case <-stopCh:
+				fmt.Printf("Closed watch on %v\n", key)
+			}
+		}
+	}(stopCh)
+	return nil
 }
 
 func loadFromKV(gc *GetConf, opts *KVOptions) {
