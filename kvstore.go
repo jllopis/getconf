@@ -75,7 +75,9 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 }
 
 func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan struct{}) error {
-	// watch value
+	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
+	// and watch value using it so the key passed will not be the full path anymore.
+	// Possibly we will need to add setName and Bucket to the Option struct
 	if e, err := gc.KVStore.Exists(key); err != nil || !e {
 		if err != nil {
 			return err
@@ -94,6 +96,7 @@ func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan st
 				f(string(pair.Value))
 			case <-stopCh:
 				fmt.Printf("Closed watch on %v\n", key)
+				return
 			}
 		}
 	}(stopCh)
