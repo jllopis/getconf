@@ -259,7 +259,7 @@ Except for **Bucket** that will be used in the path to the value (libkv use it o
 - [x] Read variables from flags in command line
 - [x] Read variables from environment
 - [x] Implement remote config service by way of [libkv](https://github.com/docker/libkv)
-- [ ] Add documentation
+- [x] Add documentation
 - [ ] Suppot all go types, mainly date
 - [ ] Add test cases
 
