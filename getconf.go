@@ -154,53 +154,53 @@ func (g *GetConf) parseStruct(s reflect.Value) error {
 	return nil
 }
 
-func (c *GetConf) setConfigFromFlag(f *flag.Flag) {
-	c.setOption(f.Name, f.Value.String(), "flag")
+func (g *GetConf) setConfigFromFlag(f *flag.Flag) {
+	g.setOption(f.Name, f.Value.String(), "flag")
 }
 
-func (c *GetConf) setOption(name, value, setBy string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.options[name].value = getTypedValue(value, c.options[name].oType)
-	c.options[name].updatedAt = time.Now().UTC()
-	c.options[name].lastSetBy = setBy
+func (g *GetConf) setOption(name, value, setBy string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.options[name].value = getTypedValue(value, g.options[name].oType)
+	g.options[name].updatedAt = time.Now().UTC()
+	g.options[name].lastSetBy = setBy
 }
 
 // Get return the value associated to the key
-func (c *GetConf) Get(key string) interface{} {
-	if o, ok := c.options[key]; ok != false {
+func (g *GetConf) Get(key string) interface{} {
+	if o, ok := g.options[key]; ok != false && o.value != nil {
 		return o.value
 	}
 	return nil
 }
 
 // GetString will return the value associated to the key as a string
-func (c *GetConf) GetString(key string) string {
-	if val, ok := c.options[key]; ok {
+func (g *GetConf) GetString(key string) string {
+	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(string)
 	}
 	return ""
 }
 
 // GetInt will return the value associated to the key as an int
-func (c *GetConf) GetInt(key string) (int, error) {
-	if val, ok := c.options[key]; ok {
+func (g *GetConf) GetInt(key string) (int, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(int), nil
 	}
 	return 0, errors.New("Key not found")
 }
 
 // GetBool will return the value associated to the key as a bool
-func (c *GetConf) GetBool(key string) (bool, error) {
-	if val, ok := c.options[key]; ok {
+func (g *GetConf) GetBool(key string) (bool, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(bool), nil
 	}
 	return false, errors.New("Key not found")
 }
 
 // GetFloat will return the value associated to the key as a float64
-func (c *GetConf) GetFloat(key string) (float64, error) {
-	if val, ok := c.options[key]; ok {
+func (g *GetConf) GetFloat(key string) (float64, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(float64), nil
 	}
 	return 0, errors.New("Key not found")
@@ -208,9 +208,12 @@ func (c *GetConf) GetFloat(key string) (float64, error) {
 
 // GetAll return a map with the options and its values
 // The values are of type interface{} so they have to be casted
-func (c *GetConf) GetAll() map[string]interface{} {
+func (g *GetConf) GetAll() map[string]interface{} {
 	opts := make(map[string]interface{})
-	for _, x := range c.options {
+	for _, x := range g.options {
+		if x.value == nil {
+			continue
+		}
 		opts[x.name] = x.value
 	}
 	return opts
