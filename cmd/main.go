@@ -43,6 +43,11 @@ func main() {
 
 	fmt.Println(conf)
 
+	nullValue, err := conf.GetInt("integer")
+	if err != nil {
+		fmt.Printf("integer Type = %T, integer=%d | error=%s\n", nullValue, nullValue, err)
+	}
+
 	d, _ := conf.GetBool("debug")
 	fmt.Printf("Debug = %v (Type: %T)\n", d, d)
 
@@ -58,7 +63,7 @@ func main() {
 		if e, err := conf.KVStore.Exists(item); err == nil && e {
 			pair, err := conf.KVStore.Get(item)
 			if err != nil {
-				fmt.Errorf("Error trying accessing value at key: %v", item)
+				fmt.Printf("Error trying accessing value at key: %v\n", item)
 			}
 			fmt.Printf("GOT: %#+v\n", pair)
 			b = pair.Value
