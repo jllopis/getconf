@@ -1,7 +1,47 @@
-tconsul:
-  image: progrium/consul
-  restart: always
-  hostname: consul
-  ports:
-    - 8500:8500
-  command: "-server -bootstrap"
+version: '3'
+
+volumes:
+    etcd_gc_data:
+        driver: local
+
+services:
+    etcd-gc:
+      image: quay.io/coreos/etcd:v3.2.1
+      volumes:
+        - etcd_gc_data:/etcd-data
+        - /usr/share/ca-certificates/:/etc/ssl/certs
+      environment:
+        - STATS_PORT=29340
+      ports:
+        - 2379:2379
+        - 2380:2380
+      networks:
+        test_gc_network:
+          aliases:
+            - etcd-gc.net.local
+      command: "/usr/local/bin/etcd \
+                --data-dir=/etcd-data --name etcd-gc \
+                --listen-peer-urls http://127.0.0.1:2380 \
+                --advertise-client-urls http://127.0.0.1:2379 \
+                --listen-client-urls http://127.0.0.1:2379"
+
+    cli-gc:
+        build:
+                context: .
+                args:
+                        version: 0.1.0-dirty
+        environment:
+            - STATS_PORT=29340
+            - STATS_GWADDR=localhost
+            - STATS_INTERVAL_TICKER=30s #https://golang.org/pkg/time/#ParseDuration
+        restart: always
+        ports:
+            - "29340:29340"
+            - "29341:29341"
+        networks:
+                test_gc_network:
+                        aliases:
+                                - cli-gc.net.local
+
+networks:
+        test_gc_network:
