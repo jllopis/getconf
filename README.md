@@ -263,3 +263,15 @@ Except for **Bucket** that will be used in the path to the value (libkv use it o
 - [ ] Suppot all go types, mainly date
 - [ ] Add test cases
 
+# Similar projects
+
+- [stevenroose/gonfig](https://github.com/stevenroose/gonfig)
+- [kelseyhightower/confd](https://github.com/kelseyhightower/confd)
+- [spf13/viper](https://github.com/spf13/viper)
+- [containous/staert](https://github.com/containous/staert)
+- [bsideup/configo](https://github.com/bsideup/configo)
+- [tomazk/envcfg](https://github.com/tomazk/envcfg)
+- [jimmysawczuk/go-config](https://github.com/jimmysawczuk/go-config)
+- [jinzhu/configor](https://github.com/jinzhu/configor)
+- [zpatrick/go-config](https://github.com/zpatrick/go-config)
+- [hashicorp/hcl](https://github.com/hashicorp/hcl)
