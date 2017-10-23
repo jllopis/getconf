@@ -1,7 +1,7 @@
 getconf
 ======
 
-**v0.5.0**
+**v0.5.1**
 
 Go package to load configuration variables from OS environment, command line and/or a remote backend (still not supported).
 

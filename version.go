@@ -1,7 +1,7 @@
 package getconf
 
 const (
-	VERSION = "v0.5.0"
+	VERSION = "v0.5.1"
 )
 
 func Version() string {
