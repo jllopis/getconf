@@ -6,7 +6,6 @@ import (
 )
 
 func TestGetTypeValue(t *testing.T) {
-
 	var result interface{}
 
 	result = getTypedValue("9", reflect.Int)

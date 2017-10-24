@@ -12,6 +12,7 @@ type Config struct {
 	Backend  string  `getconf:"default etcd, info backend to use"`
 	Debug    bool    `getconf:"debug, default false, info enable debug logging"`
 	MyInt    int     `getconf:"integer, info test int setting"`
+	BigInt   int64   `getconf:"bigint, info test int64 setting"`
 	Pi       float64 `getconf:"pi, info value of PI"`
 	IgnoreMe int     `getconf:"-"`
 }
@@ -54,7 +55,7 @@ func main() {
 	fmt.Println("ALL OPTIONS:")
 	o := conf.GetAll()
 	for k, v := range o {
-		fmt.Printf("\tKey: %s - Value: %v\n", k, v)
+		fmt.Printf("\tType: %T, Key: %s - Value: %v\n", v, k, v)
 	}
 
 	fmt.Println("Testing Consul:")
@@ -67,7 +68,7 @@ func main() {
 			}
 			fmt.Printf("GOT: %#+v\n", pair)
 			b = pair.Value
-			fmt.Printf("Key: %s, Value: %s\n", pair.Key, b)
+			fmt.Printf("Type: %T, Key: %s, Value: %s\n", b, pair.Key, b)
 		} else {
 			fmt.Printf("Key %v not found\n", item)
 		}

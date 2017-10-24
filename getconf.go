@@ -297,27 +297,27 @@ func getTypedValue(opt string, t reflect.Kind) interface{} {
 		return 0
 	case reflect.Int8:
 		if value, err := strconv.ParseInt(opt, 10, 8); err == nil {
-			return value
+			return int8(value)
 		}
 		return 0
 	case reflect.Int16:
 		if value, err := strconv.ParseInt(opt, 10, 16); err == nil {
-			return value
+			return int16(value)
 		}
 		return 0
 	case reflect.Int32:
 		if value, err := strconv.ParseInt(opt, 10, 32); err == nil {
-			return value
+			return int32(value)
 		}
 		return 0
 	case reflect.Int64:
 		if value, err := strconv.ParseInt(opt, 10, 64); err == nil {
-			return value
+			return int64(value)
 		}
 		return 0
 	case reflect.Float32:
 		if value, err := strconv.ParseFloat(opt, 32); err == nil {
-			return value
+			return float32(value)
 		}
 		return 0
 	case reflect.Float64:
