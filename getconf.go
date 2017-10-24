@@ -238,6 +238,14 @@ func (g *GetConf) GetFloat(key string) (float64, error) {
 	return 0, errors.New("Key not found")
 }
 
+// GetFloat32 will return the value associated to the key as a float32
+func (g *GetConf) GetFloat32(key string) (float32, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
+		return val.value.(float32), nil
+	}
+	return 0, errors.New("Key not found")
+}
+
 // GetAll return a map with the options and its values
 // The values are of type interface{} so they have to be casted
 func (g *GetConf) GetAll() map[string]interface{} {
