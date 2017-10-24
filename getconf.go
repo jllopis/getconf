@@ -190,6 +190,38 @@ func (g *GetConf) GetInt(key string) (int, error) {
 	return 0, errors.New("Key not found")
 }
 
+// GetInt8 will return the value associated to the key as an int8
+func (g *GetConf) GetInt8(key string) (int8, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
+		return val.value.(int8), nil
+	}
+	return 0, errors.New("Key not found")
+}
+
+// GetInt16 will return the value associated to the key as an int16
+func (g *GetConf) GetInt16(key string) (int16, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
+		return val.value.(int16), nil
+	}
+	return 0, errors.New("Key not found")
+}
+
+// GetInt32 will return the value associated to the key as an int32
+func (g *GetConf) GetInt32(key string) (int32, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
+		return val.value.(int32), nil
+	}
+	return 0, errors.New("Key not found")
+}
+
+// GetInt64 will return the value associated to the key as an int64
+func (g *GetConf) GetInt64(key string) (int64, error) {
+	if val, ok := g.options[key]; ok && val.value != nil {
+		return val.value.(int64), nil
+	}
+	return 0, errors.New("Key not found")
+}
+
 // GetBool will return the value associated to the key as a bool
 func (g *GetConf) GetBool(key string) (bool, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
@@ -252,7 +284,7 @@ func getTypedValue(opt string, t reflect.Kind) interface{} {
 	switch t {
 	case reflect.Int:
 		if value, err := strconv.ParseInt(opt, 10, 0); err == nil {
-			return value
+			return int(value)
 		}
 		return 0
 	case reflect.Int8:
