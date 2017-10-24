@@ -269,20 +269,25 @@ func (g *GetConf) String() string {
 
 // parseTags read the tags and set the corresponding variables in the Option struct
 func parseTags(o *Option, t string) error {
-	for _, k := range strings.Split(t, ",") {
+	for i, k := range strings.Split(t, ",") {
 		if strings.TrimSpace(k) == "-" {
 			return errors.New("untrack")
 		}
-		switch strings.Fields(k)[0] {
+		kv := strings.Split(k, ":")
+		if len(kv) == 1 {
+			if i == 0 {
+				o.name = strings.TrimSpace(kv[0])
+			}
+			continue
+		}
+		switch strings.TrimSpace(kv[0]) {
 		case "default":
-			o.defValue = strings.TrimSpace(strings.Fields(k)[1])
+			o.defValue = strings.TrimSpace(kv[1])
 			o.value = getTypedValue(o.defValue, o.oType)
 			o.updatedAt = time.Now().UTC()
 			o.lastSetBy = "default"
 		case "info":
-			o.usage = strings.TrimSpace(strings.Join(strings.Fields(k)[1:], " "))
-		default:
-			o.name = strings.TrimSpace(strings.Fields(k)[0])
+			o.usage = strings.TrimSpace(kv[1])
 		}
 	}
 	return nil

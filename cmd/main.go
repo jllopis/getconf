@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Backend  string  `getconf:"default etcd, info backend to use"`
-	Debug    bool    `getconf:"debug, default false, info enable debug logging"`
-	MyInt    int     `getconf:"integer, info test int setting"`
-	BigInt   int64   `getconf:"bigint, info test int64 setting"`
-	Pi       float64 `getconf:"pi, info value of PI"`
-	IgnoreMe int     `getconf:"-"`
+	Backend     string  `getconf:"default: etcd, info: backend to use"`
+	Debug       bool    `getconf:"debug, default: false, info: enable debug logging"`
+	MyInt       int     `getconf:"integer, info: test int setting"`
+	BigInt      int64   `getconf:"bigint, info: test int64 setting"`
+	Pi          float64 `getconf:"pi, info: value of PI"`
+	IgnoreMe    int     `getconf:"-"`
+	IgnoreField bool    `getconf:"info: empty field last not allowed, surprise"`
 }
 
 func init() {

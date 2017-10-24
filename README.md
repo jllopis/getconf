@@ -11,12 +11,13 @@ Go package to load configuration variables from OS environment, command line and
 
 ## Installation
 
-    go get github.com/jllopis/getconf
+    go get -u github.com/jllopis/getconf
 
 ## Quick Start
 
 We recommend vendoring the dependency. There are nice tools out there that works with go 1.5+ (using GO15VENDOREXPERIMENT) or 1.6 (vendor enabled by default):
 
+- [dep](https://github.com/golang/dep)
 - [govendor](https://github.com/kardianos/govendor)
 - [gvt](https://github.com/FiloSottile/gvt)
 - [godep](https://github.com/tools/godep)
@@ -24,7 +25,7 @@ We recommend vendoring the dependency. There are nice tools out there that works
 To start using _getconf_:
 
 1. Include the package *github.com/jllopis/getconf* in your file
-2. Create a *struct* to hold the variables. This struct will not be filled with values, it is just a convenient method to define them
+2. Create a *struct* to hold the variables. This struct will not be filled with values, it is just a convenient method to define them. Note that both the struct and the fields must be exported (uppercase)
 3. Call `getconf.New("myconf", myconfstruct interface{}) *GetConf`
    where:
      - *myconf* is the name we give to the set
@@ -66,8 +67,8 @@ import (
 )
 
 type Config struct {
-	Backend  string  `getconf:"default etcd, info backend to use"`
-	Debug    bool    `getconf:"debug, default false, info enable debug logging"`
+	Backend  string  `getconf:"default: etcd, info: backend to use"`
+	Debug    bool    `getconf:"debug, default: false, info: enable debug logging"`
 	IgnoreMe int     `getconf:"-"`
 }
 
@@ -182,7 +183,7 @@ Any other type will be discarded.
 
 If a value can not be matched to the variable type, it will be discarded and the variable set to **nil**.
 
-Note that the values are reade as **string** in any of the three environments so if you want to store a binary value it should be **Base64** encoded. Same when reading it.
+Note that the values are readed as **string** in any of the three environments so if you want to store a binary value it should be **Base64** encoded. Same when reading it.
 
 ### tags
 
@@ -191,6 +192,10 @@ There are some tags that can be used:
 - **-**: If a dash is found the variable will not be observed
 - **default**: Specifies the default value for the variable if none found
 - **info**: Help information about the intended use of the variable
+
+The tags are separated by comma. It holds a `key: value` pair for every setting (key before a _colon_, value after it). Ex: `default: defaultValue, info: an example`.
+
+The exception to the rule that if the first field does not have a colon (key only) it is assumed to be the name of the variable. This name must be used to acces it later. If a _key only_ field comes after first position, it will be ignored.
 
 ### environment
 
