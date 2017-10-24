@@ -168,7 +168,7 @@ func (g *GetConf) setOption(name, value, setBy string) {
 
 // Get return the value associated to the key
 func (g *GetConf) Get(key string) interface{} {
-	if o, ok := g.options[key]; ok != false && o.value != nil {
+	if o, ok := g.options[key]; ok != false {
 		return o.value
 	}
 	return nil
