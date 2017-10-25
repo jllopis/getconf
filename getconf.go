@@ -182,6 +182,13 @@ func (g *GetConf) GetString(key string) string {
 	return ""
 }
 
+func (g *GetConf) GetTime(key string) time.Time {
+	if val, ok := g.options[key]; ok && val.value != nil {
+		return val.value.(time.Time)
+	}
+	return time.Time{}
+}
+
 // GetInt will return the value associated to the key as an int
 func (g *GetConf) GetInt(key string) (int, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
@@ -273,7 +280,7 @@ func parseTags(o *Option, t string) error {
 		if strings.TrimSpace(k) == "-" {
 			return errors.New("untrack")
 		}
-		kv := strings.Split(k, ":")
+		kv := strings.SplitN(k, ":", 2)
 		if len(kv) == 1 {
 			if i == 0 {
 				o.name = strings.TrimSpace(kv[0])
@@ -337,6 +344,24 @@ func getTypedValue(opt string, t reflect.Kind) interface{} {
 		return false
 	case reflect.String:
 		return string(opt)
+	case reflect.Struct:
+		if t, err := time.Parse(time.RFC3339Nano, opt); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2006-01-02T15:04:05", opt); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2006-01-02 15:04:05", opt); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2006-01-02", opt); err == nil {
+			return t
+		}
+
+		if sec, err := strconv.ParseInt(opt, 10, 64); err == nil {
+			return time.Unix(sec, 0)
+		}
+		return time.Time{}
 	}
 	return nil
 }

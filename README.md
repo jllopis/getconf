@@ -178,8 +178,17 @@ The struct can be any length and supported types are:
 * float32, float64
 * string
 * bool
+* time.Time
 
-Any other type will be discarded.
+The type `time.Time` supports the following layouts:
+
+* **RFC3339Nano** (_2017-10-24T22:11:12+00:00_or _2017-10-24T22:21:23.159239900+00:00_)
+* **Epoch** in seconds since January 1, 1970 UTC (_1508922049_)
+* _2017-10-24T22:31:34_
+* _2017-10-24 22:31:34_
+* _2017-10-24_
+
+Any other type will be discarded. A `time.Time` layout different that the ones supported (i.e. epoch in miliseconds) will produce an invalid result.
 
 If a value can not be matched to the variable type, it will be discarded and the variable set to **nil**.
 
@@ -265,7 +274,7 @@ Except for **Bucket** that will be used in the path to the value (libkv use it o
 - [x] Read variables from environment
 - [x] Implement remote config service by way of [libkv](https://github.com/docker/libkv)
 - [x] Add documentation
-- [ ] Suppot all go types, mainly date
+- [x] Suppot all go types, mainly date
 - [ ] Add test cases
 
 # Similar projects
