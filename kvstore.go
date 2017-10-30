@@ -7,9 +7,14 @@ import (
 	"strings"
 	"time"
 
+	// "github.com/abronan/libkv"
+	// "github.com/abronan/libkv/store"
+	// "github.com/abronan/libkv/store/consul"
+	// "github.com/abronan/libkv/store/etcd/v3"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/consul"
+	// "github.com/docker/libkv/store/etcd"
 )
 
 type KVOptions struct {
@@ -64,6 +69,9 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 			return gc, errors.New("cannot create store consul")
 		}
 		gc.KVStore = kv
+	// case "etcd":
+	// 	etcd.Register()
+
 	default:
 		return gc, errors.New("unknown backend")
 	}
