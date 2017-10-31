@@ -71,7 +71,30 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 		gc.KVStore = kv
 	case "etcd":
 		etcd.Register()
-
+		// Parse config
+		c := &store.Config{
+			TLS:               opts.KVConfig.TLS,
+			ConnectionTimeout: opts.KVConfig.ConnectionTimeout,
+			Bucket:            opts.KVConfig.Bucket,
+			PersistConnection: opts.KVConfig.PersistConnection,
+		}
+		if opts.KVConfig.ClientTLS != nil {
+			c.ClientTLS = &store.ClientTLSConfig{
+				CertFile:   opts.KVConfig.ClientTLS.CertFile,
+				KeyFile:    opts.KVConfig.ClientTLS.KeyFile,
+				CACertFile: opts.KVConfig.ClientTLS.CACertFile,
+			}
+		}
+		// Initialize a new store with consul
+		kv, err := libkv.NewStore(
+			store.ETCD,
+			opts.URLs,
+			c,
+		)
+		if err != nil {
+			return gc, errors.New("cannot create store consul")
+		}
+		gc.KVStore = kv
 	default:
 		return gc, errors.New("unknown backend")
 	}
