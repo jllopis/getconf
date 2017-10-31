@@ -2,8 +2,20 @@
 
 
 [[projects]]
+  name = "github.com/coreos/etcd"
+  packages = ["client","pkg/pathutil","pkg/srv","pkg/types","version"]
+  revision = "f1d7dd87da3e8feab4aaf675b8e29c6a5ed5f58b"
+  version = "v3.2.9"
+
+[[projects]]
+  name = "github.com/coreos/go-semver"
+  packages = ["semver"]
+  revision = "8ab6407b697782a06568d4b7f1db25550ec2e4c6"
+  version = "v0.2.0"
+
+[[projects]]
   name = "github.com/docker/libkv"
-  packages = [".","store","store/consul"]
+  packages = [".","store","store/consul","store/etcd"]
   revision = "aabc039ad04deb721e234f99cd1b4aa28ac71a40"
   version = "v0.2.1"
 
@@ -37,9 +49,21 @@
   packages = ["."]
   revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
 
+[[projects]]
+  branch = "master"
+  name = "github.com/ugorji/go"
+  packages = ["codec"]
+  revision = "d03304bb1d83c196fd3017dca37e89a4504b3676"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "c73622c77280266305273cb545f54516ced95b93"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1f5a0efea8472b9731d0554bcdb2c6b71e2d96febbac63079f6c6755529a60d1"
+  inputs-digest = "d7fdac548e37fb11a8ff383760bd7ecdfa6141ea57eee38cec177d3796f2a1e2"
   solver-name = "gps-cdcl"
   solver-version = 1

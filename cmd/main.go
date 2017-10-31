@@ -35,8 +35,8 @@ var (
 func main() {
 	var err error
 	conf, err = getconf.New("test", &Config{}).EnableKVStore(&getconf.KVOptions{
-		Backend: "consul",
-		URLs:    []string{"b2d:8500"},
+		Backend: "etcd",
+		URLs:    []string{"localhost:2379"},
 		KVConfig: &getconf.Config{
 			ConnectionTimeout: 10 * time.Second,
 			Bucket:            "test",
@@ -68,7 +68,7 @@ func main() {
 		fmt.Printf("\tType: %T, Key: %s - Value: %v\n", v, k, v)
 	}
 
-	fmt.Println("Testing Consul:")
+	fmt.Println("Testing etcd:")
 	var b []byte
 	for _, item := range []string{"test/test/Backend", "test/test/debug", "test/test/integer", "test/test/pi"} {
 		if e, err := conf.KVStore.Exists(item); err == nil && e {

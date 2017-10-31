@@ -21,9 +21,10 @@ services:
             - etcd-gc.net.local
       command: "/usr/local/bin/etcd \
                 --data-dir=/etcd-data --name etcd-gc \
-                --listen-peer-urls http://127.0.0.1:2380 \
+                --initial-advertise-peer-urls http://127.0.0.1:2380 --listen-peer-urls http://0.0.0.0:2380 \
                 --advertise-client-urls http://127.0.0.1:2379 \
-                --listen-client-urls http://127.0.0.1:2379"
+                --listen-client-urls http://0.0.0.0:2379 \
+                --initial-cluster etcd-gc=http://127.0.0.1:2380"
 
     cli-gc:
         build:
