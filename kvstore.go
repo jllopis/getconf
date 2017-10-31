@@ -109,7 +109,7 @@ func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan st
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
 	// Possibly we will need to add setName and Bucket to the Option struct
-	if e, err := gc.KVStore.Exists(key); err != nil || !e {
+	if _, err := gc.KVStore.Exists(key); err != nil {
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,9 @@ func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan st
 		for {
 			select {
 			case pair := <-evt:
-				f(string(pair.Value))
+				if pair != nil {
+					f(string(pair.Value))
+				}
 			case <-stopCh:
 				fmt.Printf("Closed watch on %v\n", key)
 				return
