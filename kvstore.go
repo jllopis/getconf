@@ -30,6 +30,7 @@ type Config struct {
 	ConnectionTimeout time.Duration
 	Bucket            string
 	PersistConnection bool
+	Prefix            string
 }
 
 // ClientTLSConfig contains data for a Client TLS configuration in the form
@@ -40,16 +41,23 @@ type ClientTLSConfig struct {
 	CACertFile string
 }
 
+// EnableKVStore sets the backend store as resource for options.
+// It will set the bucket with Prefix+setName+bucket
 func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	switch strings.ToLower(opts.Backend) {
 	case "consul":
 		// Register consul store to libkv
 		consul.Register()
+		if opts.KVConfig.Prefix != "" && !strings.HasSuffix(opts.KVConfig.Prefix, "/") {
+			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
+		}
+		opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"
+
 		// Parse config
 		c := &store.Config{
 			TLS:               opts.KVConfig.TLS,
 			ConnectionTimeout: opts.KVConfig.ConnectionTimeout,
-			Bucket:            opts.KVConfig.Bucket,
+			Bucket:            opts.KVConfig.Prefix + opts.KVConfig.Bucket,
 			PersistConnection: opts.KVConfig.PersistConnection,
 		}
 		if opts.KVConfig.ClientTLS != nil {
@@ -72,10 +80,15 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	case "etcd":
 		etcd.Register()
 		// Parse config
+		if opts.KVConfig.Prefix != "" && opts.KVConfig.Prefix[len(opts.KVConfig.Prefix)-1] != '/' {
+			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
+		}
+		opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"
+
 		c := &store.Config{
 			TLS:               opts.KVConfig.TLS,
 			ConnectionTimeout: opts.KVConfig.ConnectionTimeout,
-			Bucket:            opts.KVConfig.Bucket,
+			Bucket:            opts.KVConfig.Prefix + opts.KVConfig.Bucket,
 			PersistConnection: opts.KVConfig.PersistConnection,
 		}
 		if opts.KVConfig.ClientTLS != nil {
@@ -164,12 +177,11 @@ func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), 
 			case pairList := <-evt:
 				for _, pair := range pairList {
 					if pair != nil {
-						if !strings.HasSuffix(dir, "/") {
-							dir = dir + "/"
+						if dir[len(dir)-1] != '/' {
+							dir += "/"
 						}
 						split := strings.SplitAfter(pair.Key, dir)
 						key := split[len(split)-1]
-						fmt.Printf("key: %s val: %s\n", key, string(pair.Value))
 						gc.setOption(key, string(pair.Value), "kvstore")
 						f(pair.Key, pair.Value)
 					}
@@ -185,23 +197,19 @@ func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), 
 
 func loadFromKV(gc *GetConf, opts *KVOptions) {
 	for _, o := range gc.options {
-		val := getKV(gc.KVStore, gc.GetSetName(), opts.KVConfig.Bucket, o.name)
+		val := getKV(gc.KVStore, opts.KVConfig.Prefix+opts.KVConfig.Bucket, o.name)
 		if val != "" {
 			gc.setOption(o.name, val, "kvstore")
 		}
 	}
 }
 
-func getKV(kvs store.Store, setName, bucket, key string) string {
-	var prefix string
-	if setName != "" {
-		prefix = setName
-	}
-	if bucket != "" {
-		prefix = prefix + "/" + bucket
-		if prefix[len(prefix)-1] != '/' {
-			prefix += "/"
-		}
+func getKV(kvs store.Store, bucket, key string) string {
+	prefix := bucket
+
+	fmt.Printf("GETTING KVPAIR FROM BUCKET: %s\n", prefix)
+	if prefix[len(prefix)-1] != '/' {
+		prefix += "/"
 	}
 
 	if e, err := kvs.Exists(prefix + key); err == nil && e {
