@@ -105,15 +105,19 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	return gc, nil
 }
 
+// MonitFunc will listen for a key to change in the store. The variable must exists in the
+// store prior to its use.
+// If creation must be watched, use MonitTreeFunc instead.
 func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan struct{}) error {
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
 	// Possibly we will need to add setName and Bucket to the Option struct
-	if _, err := gc.KVStore.Exists(key); err != nil {
-		if err != nil {
+	if ok, err := gc.KVStore.Exists(key); err != nil {
+		// if ok, key exists and there was an error so we return
+		// if !ok, key does not exist so we can wait for its creation
+		if ok {
 			return err
 		}
-		return errors.New("key does not exist in KV store")
 	}
 	evt, err := gc.KVStore.Watch(key, stopCh)
 	if err != nil {
@@ -129,6 +133,49 @@ func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan st
 				}
 			case <-stopCh:
 				fmt.Printf("Closed watch on %v\n", key)
+				return
+			}
+		}
+	}(stopCh)
+	return nil
+}
+
+// MonitTreeFunc will listen for changes in the store refered to any variable in the tree.
+// If a variable does not exist yet, it will be reported upon creation.
+func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), stopCh <-chan struct{}) error {
+	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
+	// and watch value using it so the key passed will not be the full path anymore.
+	// Possibly we will need to add setName and Bucket to the Option struct
+	if ok, err := gc.KVStore.Exists(dir); err != nil {
+		// if ok, dir exists and there was an error so we return
+		// if !ok, dir does not exist so we can wait for its creation
+		if ok {
+			return err
+		}
+	}
+	evt, err := gc.KVStore.WatchTree(dir, stopCh)
+	if err != nil {
+		return err
+	}
+	// if changed, exec func
+	go func(stop <-chan struct{}) {
+		for {
+			select {
+			case pairList := <-evt:
+				for _, pair := range pairList {
+					if pair != nil {
+						if !strings.HasSuffix(dir, "/") {
+							dir = dir + "/"
+						}
+						split := strings.SplitAfter(pair.Key, dir)
+						key := split[len(split)-1]
+						fmt.Printf("key: %s val: %s\n", key, string(pair.Value))
+						gc.setOption(key, string(pair.Value), "kvstore")
+						f(pair.Key, pair.Value)
+					}
+				}
+			case <-stopCh:
+				fmt.Printf("Closed watch on %v\n", dir)
 				return
 			}
 		}

@@ -39,7 +39,7 @@ func main() {
 		URLs:    []string{"localhost:2379"},
 		KVConfig: &getconf.Config{
 			ConnectionTimeout: 10 * time.Second,
-			Bucket:            "test",
+			Bucket:            "testbucket",
 			PersistConnection: true,
 		},
 	})
@@ -70,7 +70,7 @@ func main() {
 
 	fmt.Println("Testing etcd:")
 	var b []byte
-	for _, item := range []string{"test/test/Backend", "test/test/debug", "test/test/integer", "test/test/pi"} {
+	for _, item := range []string{"test/testbucket/Backend", "test/testbucket/debug", "test/testbucket/integer", "test/testbucket/pi"} {
 		if e, err := conf.KVStore.Exists(item); err == nil && e {
 			pair, err := conf.KVStore.Get(item)
 			if err != nil {
@@ -86,9 +86,23 @@ func main() {
 
 	fmt.Println("Testing watch on integer")
 	stopCh := make(chan struct{})
-	conf.MonitFunc("test/test/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
+	conf.MonitFunc("test/testbucket/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
 	time.Sleep(20 * time.Second)
 	stopCh <- struct{}{}
 	time.Sleep(1 * time.Second)
+
+	fmt.Println("Testing watch on dir test/testbucket")
+	stopCh = make(chan struct{})
+	conf.MonitTreeFunc("test/testbucket", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %v (%T)\n", k, v, v) }, stopCh)
+	time.Sleep(20 * time.Second)
+	stopCh <- struct{}{}
+	time.Sleep(1 * time.Second)
+
+	intval, err := conf.GetInt("integer")
+	if err != nil {
+		fmt.Printf("integer Type = %T, integer=%d | error=%s\n", intval, intval, err)
+	}
+	fmt.Printf("\tType: %T, Key: %s - Value: %v\n", intval, "integer", intval)
+
 	fmt.Println("Quitting test app")
 }
