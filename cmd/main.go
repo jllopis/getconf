@@ -28,19 +28,22 @@ func init() {
 }
 
 var (
-	conf    *getconf.GetConf
-	verbose bool
+	conf     *getconf.GetConf
+	verbose  bool
+	kvPrefix = "/settings/apps"
+	kvBucket = "v1"
 )
 
 func main() {
 	var err error
-	conf, err = getconf.New("test", &Config{}).EnableKVStore(&getconf.KVOptions{
+	conf, err = getconf.New("testgetconf", &Config{}).EnableKVStore(&getconf.KVOptions{
 		Backend: "etcd",
 		URLs:    []string{"localhost:2379"},
 		KVConfig: &getconf.Config{
 			ConnectionTimeout: 10 * time.Second,
-			Bucket:            "testbucket",
+			Bucket:            kvBucket,
 			PersistConnection: true,
+			Prefix:            kvPrefix,
 		},
 	})
 	if err != nil {
@@ -70,7 +73,12 @@ func main() {
 
 	fmt.Println("Testing etcd:")
 	var b []byte
-	for _, item := range []string{"test/testbucket/Backend", "test/testbucket/debug", "test/testbucket/integer", "test/testbucket/pi"} {
+	for _, item := range []string{
+		kvPrefix + "/testgetconf/" + kvBucket + "/Backend",
+		kvPrefix + "/testgetconf/" + kvBucket + "/debug",
+		kvPrefix + "/testgetconf/" + kvBucket + "/integer",
+		kvPrefix + "/testgetconf/" + kvBucket + "/pi",
+	} {
 		if e, err := conf.KVStore.Exists(item); err == nil && e {
 			pair, err := conf.KVStore.Get(item)
 			if err != nil {
@@ -84,16 +92,16 @@ func main() {
 		}
 	}
 
-	fmt.Println("Testing watch on integer")
+	fmt.Println("Testing watch on " + kvPrefix + "/testgetconf/" + kvBucket + "/ integer")
 	stopCh := make(chan struct{})
-	conf.MonitFunc("test/testbucket/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
+	conf.MonitFunc(kvPrefix+"/testgetconf/"+kvBucket+"/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
 	time.Sleep(20 * time.Second)
 	stopCh <- struct{}{}
 	time.Sleep(1 * time.Second)
 
-	fmt.Println("Testing watch on dir test/testbucket")
+	fmt.Println("Testing watch on dir " + kvPrefix + "/testgetconf/" + kvBucket)
 	stopCh = make(chan struct{})
-	conf.MonitTreeFunc("test/testbucket", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %v (%T)\n", k, v, v) }, stopCh)
+	conf.MonitTreeFunc("/settings/apps/testgetconf/v1", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %v (%T)\n", k, v, v) }, stopCh)
 	time.Sleep(20 * time.Second)
 	stopCh <- struct{}{}
 	time.Sleep(1 * time.Second)
