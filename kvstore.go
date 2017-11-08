@@ -10,7 +10,7 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/consul"
-	"github.com/docker/libkv/store/etcd"
+	"github.com/docker/libkv/store/etcd/v3"
 	// "github.com/abronan/libkv"
 	// "github.com/abronan/libkv/store"
 	// "github.com/abronan/libkv/store/consul"
@@ -78,7 +78,7 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 		}
 		gc.KVStore = kv
 	case "etcd":
-		etcd.Register()
+		etcdv3.Register()
 		// Parse config
 		if opts.KVConfig.Prefix != "" && opts.KVConfig.Prefix[len(opts.KVConfig.Prefix)-1] != '/' {
 			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
@@ -100,12 +100,12 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 		}
 		// Initialize a new store with consul
 		kv, err := libkv.NewStore(
-			store.ETCD,
+			store.ETCDV3,
 			opts.URLs,
 			c,
 		)
 		if err != nil {
-			return gc, errors.New("cannot create store consul")
+			return gc, err //ors.New("cannot create store etcd")
 		}
 		gc.KVStore = kv
 	default:
@@ -125,14 +125,14 @@ func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan st
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
 	// Possibly we will need to add setName and Bucket to the Option struct
-	if ok, err := gc.KVStore.Exists(key); err != nil {
+	if ok, err := gc.KVStore.Exists(key, nil); err != nil {
 		// if ok, key exists and there was an error so we return
 		// if !ok, key does not exist so we can wait for its creation
 		if ok {
 			return err
 		}
 	}
-	evt, err := gc.KVStore.Watch(key, stopCh)
+	evt, err := gc.KVStore.Watch(key, stopCh, nil)
 	if err != nil {
 		return err
 	}
@@ -159,14 +159,14 @@ func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), 
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
 	// Possibly we will need to add setName and Bucket to the Option struct
-	if ok, err := gc.KVStore.Exists(dir); err != nil {
+	if ok, err := gc.KVStore.Exists(dir, nil); err != nil {
 		// if ok, dir exists and there was an error so we return
 		// if !ok, dir does not exist so we can wait for its creation
 		if ok {
 			return err
 		}
 	}
-	evt, err := gc.KVStore.WatchTree(dir, stopCh)
+	evt, err := gc.KVStore.WatchTree(dir, stopCh, nil)
 	if err != nil {
 		return err
 	}
@@ -207,13 +207,12 @@ func loadFromKV(gc *GetConf, opts *KVOptions) {
 func getKV(kvs store.Store, bucket, key string) string {
 	prefix := bucket
 
-	fmt.Printf("GETTING KVPAIR FROM BUCKET: %s\n", prefix)
 	if prefix[len(prefix)-1] != '/' {
 		prefix += "/"
 	}
 
-	if e, err := kvs.Exists(prefix + key); err == nil && e {
-		pair, err := kvs.Get(prefix + key)
+	if e, err := kvs.Exists(prefix+key, nil); err == nil && e {
+		pair, err := kvs.Get(prefix+key, nil)
 		if err != nil {
 			return ""
 		}
