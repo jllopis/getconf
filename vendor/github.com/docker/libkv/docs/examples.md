@@ -1,8 +1,8 @@
-#Examples
+# Examples
 
 This document contains useful example of usage for `libkv`. It might not be complete but provides with general informations on how to use the client.
 
-##Create a store and use Put/Get/Delete
+## Create a store and use Put/Get/Delete
 
 ```go
 package main
@@ -14,17 +14,23 @@ import (
 
     "github.com/docker/libkv"
     "github.com/docker/libkv/store"
+    "github.com/docker/libkv/store/boltdb"
     "github.com/docker/libkv/store/consul"
+    "github.com/docker/libkv/store/etcd/v3"
+    "github.com/docker/libkv/store/zookeeper"
+    "github.com/docker/libkv/store/redis"
 )
 
 func init() {
     // Register consul store to libkv
     consul.Register()
 
-    // We can register as many backends that are supported by libkv
-    etcd.Register()
+    // We can register more backends that are supported by
+    // libkv if we plan to use these
+    etcdv3.Register()
     zookeeper.Register()
     boltdb.Register()
+    redis.Register()
 }
 
 func main() {
@@ -48,7 +54,7 @@ func main() {
         fmt.Errorf("Error trying to put value at key: %v", key)
     }
 
-    pair, err := kv.Get(key)
+    pair, err := kv.Get(key, nil)
     if err != nil {
         fmt.Errorf("Error trying accessing value at key: %v", key)
     }
@@ -62,24 +68,24 @@ func main() {
 }
 ```
 
-##List keys
+## List keys
 
 ```go
 // List will list all the keys under `key` if it contains a set of child keys/values
-entries, err := kv.List(key)
+entries, err := kv.List(key, nil)
 for _, pair := range entries {
     fmt.Printf("key=%v - value=%v", pair.Key, string(pair.Value))
 }
 
 ```
 
-##Watching for events on a single key (Watch)
+## Watching for events on a single key (Watch)
 
 You can use watches to watch modifications on a key. First you need to check if the key exists. If this is not the case, we need to create it using the `Put` function.
 
 ```go
 // Checking on the key before watching
-if !kv.Exists(key) {
+if !kv.Exists(key, nil) {
     err := kv.Put(key, []byte("bar"), nil)
     if err != nil {
         fmt.Errorf("Something went wrong when initializing key %v", key)
@@ -87,24 +93,26 @@ if !kv.Exists(key) {
 }
 
 stopCh := make(<-chan struct{})
-events, err := kv.Watch(key, stopCh)
+events, err := kv.Watch(key, stopCh, nil)
 
-select {
-    case pair := <-events:
-        // Do something with events
-        fmt.Printf("value changed on key %v: new value=%v", key, pair.Value)
+for {
+    select {
+        case pair := <-events:
+            // Do something with events
+            fmt.Printf("value changed on key %v: new value=%v", key, pair.Value)
+    }
 }
 
 ```
 
-##Watching for events happening on child keys (WatchTree)
+## Watching for events happening on child keys (WatchTree)
 
-You can use watches to watch modifications on a key. First you need to check if the key exists. If this is not the case, we need to create it using the `Put` function. There is a special step here though if you want your code to work across backends. Because `etcd` is a special case and it makes the distinction between directories and keys, we need to make sure that the created key is considered as a directory by enforcing `IsDir` at `true`.
+You can use watches to watch modifications on a key. First you need to check if the key exists. If this is not the case, we need to create it using the `Put` function. There is a special step here if you are using etcd **APIv2** and if want your code to work across backends. `etcd` with **APIv2** makes the distinction between directories and keys, we need to make sure that the created key is considered as a directory by enforcing `IsDir` at `true`.
 
 ```go
 // Checking on the key before watching
-if !kv.Exists(key) {
-    // Don't forget IsDir:true if the code is used cross-backend
+if !kv.Exists(key, nil) {
+    // Do not forget `IsDir:true` if you are using etcd APIv2
     err := kv.Put(key, []byte("bar"), &store.WriteOptions{IsDir:true})
     if err != nil {
         fmt.Errorf("Something went wrong when initializing key %v", key)
@@ -112,7 +120,7 @@ if !kv.Exists(key) {
 }
 
 stopCh := make(<-chan struct{})
-events, err := kv.WatchTree(key, stopCh)
+events, err := kv.WatchTree(key, stopCh, nil)
 
 select {
     case pairs := <-events:
@@ -144,7 +152,7 @@ if err != nil {
 }
 
 // Get should work because we are holding the key
-pair, err := kv.Get(key)
+pair, err := kv.Get(key, nil)
 if err != nil {
     fmt.Errorf("key %v has value %v", key, pair.Value)
 }
