@@ -19,3 +19,16 @@
 # [[override]]
 #  name = "github.com/x/y"
 #  version = "2.4.0"
+
+[[constraint]]
+  name = "github.com/docker/libkv"
+  branch = "master"
+  source = "github.com/abronan/libkv"
+
+[[override]]
+  name = "google.golang.org/grpc"
+  revision = "8050b9cbc271307e5a716a9d782803d09b0d6f2d"
+
+[[override]]
+  name = "golang.org/x/text"
+  revision = "4ee4af566555f5fbe026368b75596286a312663a"
