@@ -79,8 +79,8 @@ func main() {
 		kvPrefix + "/testgetconf/" + kvBucket + "/integer",
 		kvPrefix + "/testgetconf/" + kvBucket + "/pi",
 	} {
-		if e, err := conf.KVStore.Exists(item); err == nil && e {
-			pair, err := conf.KVStore.Get(item)
+		if e, err := conf.KVStore.Exists(item, nil); err == nil && e {
+			pair, err := conf.KVStore.Get(item, nil)
 			if err != nil {
 				fmt.Printf("Error trying accessing value at key: %v\n", item)
 			}
@@ -101,7 +101,7 @@ func main() {
 
 	fmt.Println("Testing watch on dir " + kvPrefix + "/testgetconf/" + kvBucket)
 	stopCh = make(chan struct{})
-	conf.MonitTreeFunc("/settings/apps/testgetconf/v1", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %v (%T)\n", k, v, v) }, stopCh)
+	conf.MonitTreeFunc("/settings/apps/testgetconf/v1", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %#+v (%T)\n", k, v, v) }, stopCh)
 	time.Sleep(20 * time.Second)
 	stopCh <- struct{}{}
 	time.Sleep(1 * time.Second)
