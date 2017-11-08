@@ -16,7 +16,7 @@ services:
         - 2379:2379
         - 2380:2380
       networks:
-        test_gc_network:
+        backend_devel_network:
           aliases:
             - etcd-gc.net.local
       command: "/usr/local/bin/etcd \
@@ -40,9 +40,10 @@ services:
             - "29340:29340"
             - "29341:29341"
         networks:
-                test_gc_network:
+                backend_devel_network:
                         aliases:
                                 - cli-gc.net.local
 
 networks:
-        test_gc_network:
+        backend_devel_network:
+                external: true
