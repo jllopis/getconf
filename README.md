@@ -22,6 +22,31 @@ We recommend vendoring the dependency. There are nice tools out there that works
 - [gvt](https://github.com/FiloSottile/gvt)
 - [godep](https://github.com/tools/godep)
 
+**getconf** depends on some other packages:
+
+- github.com/coreos/etcd
+- github.com/docker/libkv
+- github.com/golang/protobuf
+- github.com/hashicorp/consul
+- google.golang.org/grpc
+
+As of now, it is important to note that in order to get _libkv_ working with _etcd_ you should fix the versions of some packages and use an alternate _libkv_. Using _dep_ format:
+
+```
+[[constraint]]
+  name = "github.com/docker/libkv"
+  branch = "master"
+  source = "github.com/abronan/libkv"
+
+[[override]]
+  name = "google.golang.org/grpc"
+  revision = "8050b9cbc271307e5a716a9d782803d09b0d6f2d"
+
+[[override]]
+  name = "golang.org/x/text"
+  revision = "4ee4af566555f5fbe026368b75596286a312663a"
+```
+
 To start using _getconf_:
 
 1. Include the package *github.com/jllopis/getconf* in your file
