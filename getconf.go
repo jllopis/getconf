@@ -41,6 +41,8 @@ import (
 var (
 	ErrNotStructPointer    = errors.New("initializer is not a pointer to struct")
 	ErrUninitializedStruct = errors.New("uninitialized struct")
+	ErrKeyNotFound         = errors.New("key not found")
+	ErrValueNotString      = errors.New("value is not of type string")
 
 	setName string
 )
@@ -164,6 +166,19 @@ func (g *GetConf) setOption(name, value, setBy string) {
 	g.options[name].value = getTypedValue(value, g.options[name].oType)
 	g.options[name].updatedAt = time.Now().UTC()
 	g.options[name].lastSetBy = setBy
+}
+
+// Set adds the value received as the value of the key.
+// If the key does not exist, an error ErrKeyNotFound is returned
+func (g *GetConf) Set(key, value string) error {
+	if reflect.TypeOf(value).String() != "string" {
+		return ErrValueNotString
+	}
+	if _, ok := g.options[key]; !ok {
+		return ErrKeyNotFound
+	}
+	g.setOption(key, value, "user")
+	return nil
 }
 
 // Get return the value associated to the key
