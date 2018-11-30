@@ -25,27 +25,10 @@ We recommend vendoring the dependency. There are nice tools out there that works
 **getconf** depends on some other packages:
 
 - github.com/coreos/etcd
-- github.com/docker/libkv
+- github.com/abronan/valkeyrie
 - github.com/golang/protobuf
 - github.com/hashicorp/consul
 - google.golang.org/grpc
-
-As of now, it is important to note that in order to get _libkv_ working with _etcd_ you should fix the versions of some packages and use an alternate _libkv_. Using _dep_ format:
-
-```
-[[constraint]]
-  name = "github.com/docker/libkv"
-  branch = "master"
-  source = "github.com/abronan/libkv"
-
-[[override]]
-  name = "google.golang.org/grpc"
-  revision = "8050b9cbc271307e5a716a9d782803d09b0d6f2d"
-
-[[override]]
-  name = "golang.org/x/text"
-  revision = "4ee4af566555f5fbe026368b75596286a312663a"
-```
 
 To start using _getconf_:
 
@@ -58,7 +41,7 @@ To start using _getconf_:
 4. Now, the environment and flags are parsed for any of the variables values
 6. Use the variables through the **get** methods provided
 
-Additionally, you can check for values in a remote _Key/Val_ store such as [etcd](https://coreos.com/etcd) or [consul](https://www.consul.io). We use [libkv](https://github.com/docker/libkv) so any backend supported by [libkv](https://github.com/docker/libkv) should work.
+Additionally, you can check for values in a remote _Key/Val_ store such as [etcd](https://coreos.com/etcd) or [consul](https://www.consul.io). We use [valkeyrie](https://github.com/abronan/valkeyrie) so any backend supported by [valkeyrie](https://github.com/abronan/valkeyrie) should work.
 
 To use the KV backend, you can call EnableKVStore(*getconf.KVOptions) on the **gconf** struct:
 
@@ -76,8 +59,7 @@ conf.EnableKVStore(&getconf.KVOptions{
 
 The **KVConfig** struct holds the configuration options specific to the backend you will use.
 
-In the following example we will parse the command line flags, the environment and a consul backend. Then we will watch a variable change. If such a change
-happens, the provided function will be executed.
+In the following example we will parse the command line flags, the environment and a consul backend. Then we will watch a variable change. If such a change happens, the provided function will be executed.
 
 ```go
 
@@ -264,12 +246,13 @@ type KVOptions struct {
 }
 ```
 
-The [Backends supported by libkv are](https://github.com/docker/libkv#supported-versions):
+The [Backends supported by valkeyrie are](https://github.com/abronan/valkeyrie#supported-versions):
 
 - Consul versions >= 0.5.1
 - Etcd versions >= 2.0
 - Zookeeper versions >= 3.4.5
 - Boltdb (as local store)
+- Redis versions >= 3.2.6
 
 The second struct is meant to be passed to the backend.
 
@@ -291,13 +274,13 @@ type ClientTLSConfig struct {
 
 ```
 
-Except for **Bucket** that will be used in the path to the value (libkv use it only in the Boltdb backend), all the other options match with libkv: [ClientTLSConfig](https://github.com/docker/libkv/blob/master/store/store.go#L43).
+Except for **Bucket** that will be used in the path to the value (valkeyrie use it only in the Boltdb backend), all the other options match with valkeyrie: [ClientTLSConfig](https://github.com/abronan/valkeyrie/blob/master/store/store.go#L60).
 
 # Roadmap
 
 - [x] Read variables from flags in command line
 - [x] Read variables from environment
-- [x] Implement remote config service by way of [libkv](https://github.com/docker/libkv)
+- [x] Implement remote config service by way of [valkeyrie](https://github.com/abronan/valkeyrie)
 - [x] Add documentation
 - [x] Suppot all go types, mainly date
 - [ ] Add test cases

@@ -1,11 +1,6 @@
 .PHONY: help
 .DEFAULT_GOAL := help
 
-deps: ## Vendor go dependencies
-	@echo "Vendoring dependencies"
-	@go get -u github.com/golang/dep
-	@dep ensure
-
 install-dev: deps ## Install dependencies and prepared development configuration
 	@echo "Installing development utils"
 

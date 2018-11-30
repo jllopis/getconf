@@ -92,7 +92,7 @@ func main() {
 		}
 	}
 
-	fmt.Println("Testing watch on " + kvPrefix + "/testgetconf/" + kvBucket + "/ integer")
+	fmt.Println("Testing watch on " + kvPrefix + "/testgetconf/" + kvBucket + "/integer")
 	stopCh := make(chan struct{})
 	conf.MonitFunc(kvPrefix+"/testgetconf/"+kvBucket+"/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
 	time.Sleep(20 * time.Second)

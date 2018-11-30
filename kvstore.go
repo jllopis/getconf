@@ -7,14 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/consul"
-	"github.com/docker/libkv/store/etcd/v3"
-	// "github.com/abronan/libkv"
-	// "github.com/abronan/libkv/store"
-	// "github.com/abronan/libkv/store/consul"
-	// "github.com/docker/libkv/store/etcd"
+	"github.com/abronan/valkeyrie"
+	"github.com/abronan/valkeyrie/store"
+	"github.com/abronan/valkeyrie/store/consul"
+	"github.com/abronan/valkeyrie/store/etcd/v3"
 )
 
 type KVOptions struct {
@@ -46,7 +42,7 @@ type ClientTLSConfig struct {
 func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	switch strings.ToLower(opts.Backend) {
 	case "consul":
-		// Register consul store to libkv
+		// Register consul store to valkeyrie
 		consul.Register()
 		if opts.KVConfig.Prefix != "" && !strings.HasSuffix(opts.KVConfig.Prefix, "/") {
 			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
@@ -68,7 +64,7 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 			}
 		}
 		// Initialize a new store with consul
-		kv, err := libkv.NewStore(
+		kv, err := valkeyrie.NewStore(
 			store.CONSUL,
 			opts.URLs,
 			c,
@@ -99,7 +95,7 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 			}
 		}
 		// Initialize a new store with consul
-		kv, err := libkv.NewStore(
+		kv, err := valkeyrie.NewStore(
 			store.ETCDV3,
 			opts.URLs,
 			c,
