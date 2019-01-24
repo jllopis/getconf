@@ -1,40 +1,20 @@
 package getconf
 
 import (
-	"crypto/tls"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/abronan/valkeyrie"
-	"github.com/abronan/valkeyrie/store"
-	"github.com/abronan/valkeyrie/store/consul"
-	"github.com/abronan/valkeyrie/store/etcd/v3"
+	"github.com/jllopis/getconf/backend"
+	"github.com/jllopis/getconf/backend/consul"
 )
 
 type KVOptions struct {
 	Backend  string
 	URLs     []string
-	KVConfig *Config
-}
-
-// Config contains the options for a storage client
-type Config struct {
-	ClientTLS         *ClientTLSConfig
-	TLS               *tls.Config
-	ConnectionTimeout time.Duration
-	Bucket            string
-	PersistConnection bool
-	Prefix            string
-}
-
-// ClientTLSConfig contains data for a Client TLS configuration in the form
-// the etcd client wants it.  Eventually we'll adapt it for ZK and Consul.
-type ClientTLSConfig struct {
-	CertFile   string
-	KeyFile    string
-	CACertFile string
+	KVConfig *backend.Config
 }
 
 // EnableKVStore sets the backend store as resource for options.
@@ -42,68 +22,48 @@ type ClientTLSConfig struct {
 func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	switch strings.ToLower(opts.Backend) {
 	case "consul":
-		// Register consul store to valkeyrie
-		consul.Register()
 		if opts.KVConfig.Prefix != "" && !strings.HasSuffix(opts.KVConfig.Prefix, "/") {
 			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
 		}
 		opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"
 
-		// Parse config
-		c := &store.Config{
-			TLS:               opts.KVConfig.TLS,
-			ConnectionTimeout: opts.KVConfig.ConnectionTimeout,
-			Bucket:            opts.KVConfig.Prefix + opts.KVConfig.Bucket,
-			PersistConnection: opts.KVConfig.PersistConnection,
-		}
-		if opts.KVConfig.ClientTLS != nil {
-			c.ClientTLS = &store.ClientTLSConfig{
-				CertFile:   opts.KVConfig.ClientTLS.CertFile,
-				KeyFile:    opts.KVConfig.ClientTLS.KeyFile,
-				CACertFile: opts.KVConfig.ClientTLS.CACertFile,
-			}
-		}
 		// Initialize a new store with consul
-		kv, err := valkeyrie.NewStore(
-			store.CONSUL,
-			opts.URLs,
-			c,
-		)
+		kv, err := consul.New(opts.URLs, opts.KVConfig)
 		if err != nil {
 			return gc, errors.New("cannot create store consul")
 		}
 		gc.KVStore = kv
-	case "etcd":
-		etcdv3.Register()
-		// Parse config
-		if opts.KVConfig.Prefix != "" && opts.KVConfig.Prefix[len(opts.KVConfig.Prefix)-1] != '/' {
-			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
-		}
-		opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"
+	// case "etcd":
+	// 	etcdv3.Register()
+	// 	// Parse config
+	// 	if opts.KVConfig.Prefix != "" && opts.KVConfig.Prefix[len(opts.KVConfig.Prefix)-1] != '/' {
+	// 		opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
+	// 	}
+	// 	opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"
 
-		c := &store.Config{
-			TLS:               opts.KVConfig.TLS,
-			ConnectionTimeout: opts.KVConfig.ConnectionTimeout,
-			Bucket:            opts.KVConfig.Prefix + opts.KVConfig.Bucket,
-			PersistConnection: opts.KVConfig.PersistConnection,
-		}
-		if opts.KVConfig.ClientTLS != nil {
-			c.ClientTLS = &store.ClientTLSConfig{
-				CertFile:   opts.KVConfig.ClientTLS.CertFile,
-				KeyFile:    opts.KVConfig.ClientTLS.KeyFile,
-				CACertFile: opts.KVConfig.ClientTLS.CACertFile,
-			}
-		}
-		// Initialize a new store with consul
-		kv, err := valkeyrie.NewStore(
-			store.ETCDV3,
-			opts.URLs,
-			c,
-		)
-		if err != nil {
-			return gc, err //ors.New("cannot create store etcd")
-		}
-		gc.KVStore = kv
+	// 	c := &store.Config{
+	// 		TLS:               opts.KVConfig.TLS,
+	// 		ConnectionTimeout: opts.KVConfig.ConnectionTimeout,
+	// 		Bucket:            opts.KVConfig.Prefix + opts.KVConfig.Bucket,
+	// 		PersistConnection: opts.KVConfig.PersistConnection,
+	// 	}
+	// 	if opts.KVConfig.ClientTLS != nil {
+	// 		c.ClientTLS = &store.ClientTLSConfig{
+	// 			CertFile:   opts.KVConfig.ClientTLS.CertFile,
+	// 			KeyFile:    opts.KVConfig.ClientTLS.KeyFile,
+	// 			CACertFile: opts.KVConfig.ClientTLS.CACertFile,
+	// 		}
+	// 	}
+	// 	// Initialize a new store with consul
+	// 	kv, err := valkeyrie.NewStore(
+	// 		store.ETCDV3,
+	// 		opts.URLs,
+	// 		c,
+	// 	)
+	// 	if err != nil {
+	// 		return gc, err //ors.New("cannot create store etcd")
+	// 	}
+	// 	gc.KVStore = kv
 	default:
 		return gc, errors.New("unknown backend")
 	}
@@ -117,18 +77,19 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 // MonitFunc will listen for a key to change in the store. The variable must exists in the
 // store prior to its use.
 // If creation must be watched, use MonitTreeFunc instead.
-func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan struct{}) error {
+// Deprecated. This function is deprecated and will be removed in the next release. Use WatchWithFunc instead
+func (gc *GetConf) MonitFunc(key string, f func(newval []byte), stopCh <-chan struct{}) error {
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
 	// Possibly we will need to add setName and Bucket to the Option struct
-	if ok, err := gc.KVStore.Exists(key, nil); err != nil {
+	if ok, err := gc.KVStore.Exists(key); err != nil {
 		// if ok, key exists and there was an error so we return
 		// if !ok, key does not exist so we can wait for its creation
 		if ok {
 			return err
 		}
 	}
-	evt, err := gc.KVStore.Watch(key, stopCh, nil)
+	evt, err := gc.KVStore.Watch(context.TODO(), key)
 	if err != nil {
 		return err
 	}
@@ -136,9 +97,9 @@ func (gc *GetConf) MonitFunc(key string, f func(newval string), stopCh <-chan st
 	go func(stop <-chan struct{}) {
 		for {
 			select {
-			case pair := <-evt:
-				if pair != nil {
-					f(string(pair.Value))
+			case value := <-evt:
+				if value != nil {
+					f(value)
 				}
 			case <-stopCh:
 				fmt.Printf("Closed watch on %v\n", key)
@@ -155,19 +116,22 @@ func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), 
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
 	// Possibly we will need to add setName and Bucket to the Option struct
-	if ok, err := gc.KVStore.Exists(dir, nil); err != nil {
+	if ok, err := gc.KVStore.Exists(dir); err != nil {
 		// if ok, dir exists and there was an error so we return
 		// if !ok, dir does not exist so we can wait for its creation
 		if ok {
 			return err
 		}
 	}
-	evt, err := gc.KVStore.WatchTree(dir, stopCh, nil)
+	ctx, ctxCancel := context.WithCancel(context.Background()) // debe llegar como parámetro a la función para que le cliente lo pueda cancelar
+	evt, err := gc.KVStore.WatchTree(ctx, dir)
 	if err != nil {
+		ctxCancel()
 		return err
 	}
 	// if changed, exec func
-	go func(stop <-chan struct{}) {
+	go func() {
+		defer ctxCancel()
 		for {
 			select {
 			case pairList := <-evt:
@@ -182,12 +146,10 @@ func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), 
 						f(pair.Key, pair.Value)
 					}
 				}
-			case <-stopCh:
-				fmt.Printf("Closed watch on %v\n", dir)
-				return
+			default:
 			}
 		}
-	}(stopCh)
+	}()
 	return nil
 }
 
@@ -200,19 +162,111 @@ func loadFromKV(gc *GetConf, opts *KVOptions) {
 	}
 }
 
-func getKV(kvs store.Store, bucket, key string) string {
+func getKV(kvs backend.Backend, bucket, key string) string {
 	prefix := bucket
 
 	if prefix[len(prefix)-1] != '/' {
 		prefix += "/"
 	}
 
-	if e, err := kvs.Exists(prefix+key, nil); err == nil && e {
-		pair, err := kvs.Get(prefix+key, nil)
+	if e, err := kvs.Exists(prefix + key); err == nil && e {
+		value, err := kvs.Get(context.TODO(), prefix+key)
 		if err != nil {
 			return ""
 		}
-		return string(pair.Value)
+		return string(value)
 	}
 	return ""
+}
+
+func (gc *GetConf) ListKV(path string) ([]*backend.KVPair, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			// fmt.Println(item + " -> " + ctx.Err().Error()) // prints "context deadline exceeded"
+		}
+	}()
+
+	e, err := gc.KVStore.List(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	if len(e) < 1 {
+		return nil, backend.ErrKeyNotFound
+	}
+
+	return e, nil
+}
+
+// WatchWithFunc will listen for a key to change in the store. The variable must exist in the
+// store prior to its use.
+// If creation must be watched, use MonitTreeFunc instead.
+func (gc *GetConf) WatchWithFunc(ctx context.Context, key string, f func(newval []byte)) error {
+	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
+	// and watch value using it so the key passed will not be the full path anymore.
+	// Possibly we will need to add setName and Bucket to the Option struct
+	if ok, err := gc.KVStore.Exists(key); err != nil {
+		// if ok, key exists and there was an error so we return
+		// if !ok, key does not exist so we can wait for its creation
+		if ok {
+			return err
+		}
+	}
+	evt, err := gc.KVStore.Watch(ctx, key)
+	if err != nil {
+		return err
+	}
+	// if changed, exec func
+	go func() {
+		split := strings.SplitAfter(key, "/")
+		k := split[len(split)-1]
+		for {
+			select {
+			case val := <-evt:
+				if val != nil {
+					gc.setOption(k, string(val), "kvstore")
+					f(val)
+				}
+			case <-ctx.Done():
+				fmt.Printf("Closed watch on %v\n", key)
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+func (gc *GetConf) WatchTreeWithFunc(ctx context.Context, dir string, f func(*backend.KVPair)) error {
+	evt, err := gc.KVStore.WatchTree(ctx, dir)
+	if err != nil {
+		return err
+	}
+	go func() {
+		dir = strings.TrimPrefix(dir, "/")
+		if dir[len(dir)-1] != '/' {
+			dir += "/"
+		}
+		for {
+			select {
+			case pairList := <-evt:
+				for _, pair := range pairList {
+					if pair != nil {
+						split := strings.SplitAfter(pair.Key, dir)
+						key := split[len(split)-1]
+						gc.setOption(key, string(pair.Value), "kvstore")
+						f(pair)
+					}
+				}
+			}
+		}
+	}()
+	return nil
+}
+
+// SetWatchTimeDuration sets the wait time for a watch connection to ConsulBackend
+func (g *GetConf) SetWatchTimeDuration(time time.Duration) {
+	g.KVStore.SetWatchTimeDuration(time)
 }
