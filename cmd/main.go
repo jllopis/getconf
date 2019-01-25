@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/jllopis/getconf"
+	"github.com/jllopis/getconf/backend"
 )
 
 type Config struct {
@@ -37,9 +40,9 @@ var (
 func main() {
 	var err error
 	conf, err = getconf.New("testgetconf", &Config{}).EnableKVStore(&getconf.KVOptions{
-		Backend: "etcd",
-		URLs:    []string{"localhost:2379"},
-		KVConfig: &getconf.Config{
+		Backend: "consul",
+		URLs:    []string{"localhost:8500"},
+		KVConfig: &backend.Config{
 			ConnectionTimeout: 10 * time.Second,
 			Bucket:            kvBucket,
 			PersistConnection: true,
@@ -71,46 +74,96 @@ func main() {
 		fmt.Printf("\tType: %T, Key: %s - Value: %v\n", v, k, v)
 	}
 
-	fmt.Println("Testing etcd:")
-	var b []byte
+	fmt.Println("Testing consul:")
 	for _, item := range []string{
 		kvPrefix + "/testgetconf/" + kvBucket + "/Backend",
 		kvPrefix + "/testgetconf/" + kvBucket + "/debug",
 		kvPrefix + "/testgetconf/" + kvBucket + "/integer",
 		kvPrefix + "/testgetconf/" + kvBucket + "/pi",
 	} {
-		if e, err := conf.KVStore.Exists(item, nil); err == nil && e {
-			pair, err := conf.KVStore.Get(item, nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		go func() {
+			select {
+			case <-ctx.Done():
+				fmt.Println(item + " -> " + ctx.Err().Error()) // prints "context deadline exceeded"
+			}
+		}()
+
+		if e, err := conf.KVStore.Exists(item); err == nil && e {
+			val, err := conf.KVStore.Get(ctx, item)
 			if err != nil {
 				fmt.Printf("Error trying accessing value at key: %v\n", item)
 			}
-			fmt.Printf("GOT: %#+v\n", pair)
-			b = pair.Value
-			fmt.Printf("Type: %T, Key: %s, Value: %s\n", b, pair.Key, b)
+			fmt.Printf("GOT: %#+v\n", val)
+			fmt.Printf("Type: %T, Key: %s, Value: %s\n", val, item, val)
 		} else {
 			fmt.Printf("Key %v not found\n", item)
 		}
+		cancel()
 	}
 
-	fmt.Println("Testing watch on " + kvPrefix + "/testgetconf/" + kvBucket + "/integer")
-	stopCh := make(chan struct{})
-	conf.MonitFunc(kvPrefix+"/testgetconf/"+kvBucket+"/integer", func(s string) { fmt.Printf("GOT NEW VALUE: %v (%T)\n", s, s) }, stopCh)
-	time.Sleep(20 * time.Second)
-	stopCh <- struct{}{}
-	time.Sleep(1 * time.Second)
+	fmt.Println("Testing KV List:")
+	optlist, err := conf.ListKV("/settings")
+	if err != nil {
+		fmt.Printf("error calling ListKV: %s\n", err.Error())
+		os.Exit(1)
+	}
+	for _, item := range optlist {
+		fmt.Printf("Key: %s, Value: %v, LastIndex: %d\n", item.Key, item.Value, item.LastIndex)
+	}
 
-	fmt.Println("Testing watch on dir " + kvPrefix + "/testgetconf/" + kvBucket)
-	stopCh = make(chan struct{})
-	conf.MonitTreeFunc("/settings/apps/testgetconf/v1", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %#+v (%T)\n", k, v, v) }, stopCh)
-	time.Sleep(20 * time.Second)
-	stopCh <- struct{}{}
-	time.Sleep(1 * time.Second)
+	key := kvPrefix + "/testgetconf/" + kvBucket + "/integer"
+	// key := "integer"
+	fmt.Printf("Monitoring key %s\n", key)
+	ctx, cancel := context.WithCancel(context.Background())
+	err = conf.WatchWithFunc(ctx, key, func(s []byte) {
+		fmt.Printf("GOT NEW VALUE: %s (%T)\n", s, s)
+	})
+	if err != nil {
+		fmt.Printf("Error trying to watch value at key: %v\tError: %s\n", key, err.Error())
+	}
+	time.Sleep(10 * time.Second)
+	cancel()
+
+	// fmt.Println("Testing MonitFunc:")
+	// stop := make(chan struct{})
+	// err = conf.MonitFunc(key, func(s []byte) {
+	// 	fmt.Printf("GOT NEW VALUE: %s (%T)\n", s, s)
+	// }, stop)
+	// if err != nil {
+	// 	fmt.Printf("Error trying to watch value at key: %v\tError: %s\n", key, err.Error())
+	// }
+	// time.Sleep(30 * time.Second)
+	// stop <- struct{}{}
+
+	fmt.Println("Testing WatchTree")
+	key = kvPrefix + "/testgetconf/" + kvBucket
+	fmt.Printf("Monitoring tree %s\n", key)
+	ctx, cancel = context.WithCancel(context.Background())
+	conf.SetWatchTimeDuration(1 * time.Second)
+	err = conf.WatchTreeWithFunc(ctx, key, func(kv *backend.KVPair) {
+		fmt.Printf("GOT NEW VALUE: %s = %s\n", kv.Key, kv.Value)
+	})
+	if err != nil {
+		fmt.Printf("Error trying to watch value at key: %v\tError: %s\n", key, err.Error())
+	}
+
+	time.Sleep(10 * time.Second)
+	cancel()
+
+	/*
+		fmt.Println("Testing watch on dir " + kvPrefix + "/testgetconf/" + kvBucket)
+		stopCh = make(chan struct{})
+		conf.MonitTreeFunc("/settings/apps/testgetconf/v1", func(k string, v []byte) { fmt.Printf("GOT NEW VALUE FOR %s: %#+v (%T)\n", k, v, v) }, stopCh)
+		time.Sleep(20 * time.Second)
+		stopCh <- struct{}{}
+		time.Sleep(1 * time.Second)
+	*/
 
 	intval, err := conf.GetInt("integer")
 	if err != nil {
 		fmt.Printf("integer Type = %T, integer=%d | error=%s\n", intval, intval, err)
 	}
 	fmt.Printf("\tType: %T, Key: %s - Value: %v\n", intval, "integer", intval)
-
 	fmt.Println("Quitting test app")
 }

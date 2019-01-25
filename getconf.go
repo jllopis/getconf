@@ -35,7 +35,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/abronan/valkeyrie/store"
+	"github.com/jllopis/getconf/backend"
 )
 
 var (
@@ -72,7 +72,7 @@ func (o *Option) IsBoolFlag() bool {
 }
 
 type GetConf struct {
-	KVStore store.Store
+	KVStore backend.Backend
 	options map[string]*Option
 	mu      sync.RWMutex
 }
