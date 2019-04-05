@@ -36,7 +36,7 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	// case "etcd":
 	// 	etcdv3.Register()
 	// 	// Parse config
-	// 	if opts.KVConfig.Prefix != "" && opts.KVConfig.Prefix[len(opts.KVConfig.Prefix)-1] != '/' {
+	// 	if opts.KVConfig.Prefix != "" && !strings.HasSuffix(opts.KVConfig.Prefix, "/") {
 	// 		opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
 	// 	}
 	// 	opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"

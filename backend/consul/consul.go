@@ -26,6 +26,8 @@ type ConsulBackend struct {
 	sync.Mutex
 	config *api.Config
 	client *api.Client
+	prefix string
+	bucket string
 }
 
 func New(endpoints []string, cnf *backend.Config) (*ConsulBackend, error) {
@@ -34,6 +36,8 @@ func New(endpoints []string, cnf *backend.Config) (*ConsulBackend, error) {
 	}
 
 	s := &ConsulBackend{}
+	s.prefix = cnf.Prefix
+	s.bucket = cnf.Bucket
 
 	// Create Consul client
 	config := api.DefaultConfig()
@@ -60,6 +64,11 @@ func New(endpoints []string, cnf *backend.Config) (*ConsulBackend, error) {
 
 	return s, nil
 }
+
+func (s *ConsulBackend) SetPrefix(p string) { s.prefix = p }
+func (s *ConsulBackend) SetBucket(b string) { s.bucket = b }
+func (s *ConsulBackend) GetPrefix() string  { return s.prefix }
+func (s *ConsulBackend) GetBucket() string  { return s.bucket }
 
 // SetTLS sets Consul TLS options
 func (s *ConsulBackend) setTLS(tls *tls.Config) {
