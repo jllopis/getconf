@@ -38,6 +38,12 @@ import (
 	"github.com/jllopis/getconf/backend"
 )
 
+var g *GetConf
+
+func init() {
+	g = &GetConf{}
+}
+
 var (
 	ErrNotStructPointer    = errors.New("initializer is not a pointer to struct")
 	ErrUninitializedStruct = errors.New("uninitialized struct")
@@ -85,6 +91,10 @@ type GetConfOptions struct {
 	EnvPrefix    string
 }
 
+func LoadConfig(setName string, clientStruct interface{}) {
+	New(setName, clientStruct)
+}
+
 // env then flags then remote (etcd, consul)
 func New(setName string, clientStruct interface{}) *GetConf {
 	opts := &GetConfOptions{ConfigStruct: clientStruct, EnableFlag: true}
@@ -93,7 +103,7 @@ func New(setName string, clientStruct interface{}) *GetConf {
 		opts.EnableEnv = true
 		opts.EnvPrefix = setName
 	}
-	g := NewWithOptions(opts)
+	g = NewWithOptions(opts)
 	return g
 }
 
@@ -132,6 +142,7 @@ func NewWithOptions(opts *GetConfOptions) *GetConf {
 	return g
 }
 
+func GetSetName() string { return g.GetSetName() }
 func (g *GetConf) GetSetName() string {
 	return setName
 }
@@ -170,6 +181,7 @@ func (g *GetConf) setOption(name, value, setBy string) {
 
 // Set adds the value received as the value of the key.
 // If the key does not exist, an error ErrKeyNotFound is returned
+func Set(key, value string) error { return g.Set(key, value) }
 func (g *GetConf) Set(key, value string) error {
 	if reflect.TypeOf(value).String() != "string" {
 		return ErrValueNotString
@@ -182,6 +194,7 @@ func (g *GetConf) Set(key, value string) error {
 }
 
 // Get return the value associated to the key
+func Get(key string) interface{} { return g.Get(key) }
 func (g *GetConf) Get(key string) interface{} {
 	if o, ok := g.options[key]; ok != false {
 		return o.value
@@ -190,6 +203,7 @@ func (g *GetConf) Get(key string) interface{} {
 }
 
 // GetString will return the value associated to the key as a string
+func GetString(key string) string { return g.GetString(key) }
 func (g *GetConf) GetString(key string) string {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(string)
@@ -197,6 +211,7 @@ func (g *GetConf) GetString(key string) string {
 	return ""
 }
 
+func GetTime(key string) time.Time { return g.GetTime(key) }
 func (g *GetConf) GetTime(key string) time.Time {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(time.Time)
@@ -205,6 +220,7 @@ func (g *GetConf) GetTime(key string) time.Time {
 }
 
 // GetInt will return the value associated to the key as an int
+func GetInt(key string) (int, error) { return g.GetInt(key) }
 func (g *GetConf) GetInt(key string) (int, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(int), nil
@@ -213,6 +229,7 @@ func (g *GetConf) GetInt(key string) (int, error) {
 }
 
 // GetInt8 will return the value associated to the key as an int8
+func GetInt8(key string) (int8, error) { return g.GetInt8(key) }
 func (g *GetConf) GetInt8(key string) (int8, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(int8), nil
@@ -221,6 +238,7 @@ func (g *GetConf) GetInt8(key string) (int8, error) {
 }
 
 // GetInt16 will return the value associated to the key as an int16
+func GetInt16(key string) (int16, error) { return g.GetInt16(key) }
 func (g *GetConf) GetInt16(key string) (int16, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(int16), nil
@@ -229,6 +247,7 @@ func (g *GetConf) GetInt16(key string) (int16, error) {
 }
 
 // GetInt32 will return the value associated to the key as an int32
+func GetInt32(key string) (int32, error) { return g.GetInt32(key) }
 func (g *GetConf) GetInt32(key string) (int32, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(int32), nil
@@ -237,6 +256,7 @@ func (g *GetConf) GetInt32(key string) (int32, error) {
 }
 
 // GetInt64 will return the value associated to the key as an int64
+func GetInt64(key string) (int64, error) { return g.GetInt64(key) }
 func (g *GetConf) GetInt64(key string) (int64, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(int64), nil
@@ -245,6 +265,7 @@ func (g *GetConf) GetInt64(key string) (int64, error) {
 }
 
 // GetBool will return the value associated to the key as a bool
+func GetBool(key string) (bool, error) { return g.GetBool(key) }
 func (g *GetConf) GetBool(key string) (bool, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(bool), nil
@@ -253,6 +274,7 @@ func (g *GetConf) GetBool(key string) (bool, error) {
 }
 
 // GetFloat will return the value associated to the key as a float64
+func GetFloat(key string) (float64, error) { return g.GetFloat(key) }
 func (g *GetConf) GetFloat(key string) (float64, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(float64), nil
@@ -261,6 +283,7 @@ func (g *GetConf) GetFloat(key string) (float64, error) {
 }
 
 // GetFloat32 will return the value associated to the key as a float32
+func GetFloat32(key string) (float32, error) { return g.GetFloat32(key) }
 func (g *GetConf) GetFloat32(key string) (float32, error) {
 	if val, ok := g.options[key]; ok && val.value != nil {
 		return val.value.(float32), nil
@@ -270,6 +293,7 @@ func (g *GetConf) GetFloat32(key string) (float32, error) {
 
 // GetAll return a map with the options and its values
 // The values are of type interface{} so they have to be casted
+func GetAll() map[string]interface{} { return g.GetAll() }
 func (g *GetConf) GetAll() map[string]interface{} {
 	opts := make(map[string]interface{})
 	for _, x := range g.options {

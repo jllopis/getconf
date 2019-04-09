@@ -297,3 +297,4 @@ Except for **Bucket** that will be used in the path to the value (valkeyrie use 
 - [jinzhu/configor](https://github.com/jinzhu/configor)
 - [zpatrick/go-config](https://github.com/zpatrick/go-config)
 - [hashicorp/hcl](https://github.com/hashicorp/hcl)
+- [JeremyLoy/config](https://github.com/JeremyLoy/config)

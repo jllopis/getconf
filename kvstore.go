@@ -17,8 +17,13 @@ type KVOptions struct {
 	KVConfig *backend.Config
 }
 
+func GetKVStore() backend.Backend {
+	return g.KVStore
+}
+
 // EnableKVStore sets the backend store as resource for options.
 // It will set the bucket with Prefix+setName+bucket
+func EnableKVStore(opts *KVOptions) (*GetConf, error) { return g.EnableKVStore(opts) }
 func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 	switch strings.ToLower(opts.Backend) {
 	case "consul":
@@ -78,6 +83,9 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) (*GetConf, error) {
 // store prior to its use.
 // If creation must be watched, use MonitTreeFunc instead.
 // Deprecated. This function is deprecated and will be removed in the next release. Use WatchWithFunc instead
+func MonitFunc(key string, f func(newval []byte), stopCh <-chan struct{}) error {
+	return g.MonitFunc(key, f, stopCh)
+}
 func (gc *GetConf) MonitFunc(key string, f func(newval []byte), stopCh <-chan struct{}) error {
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
@@ -112,6 +120,9 @@ func (gc *GetConf) MonitFunc(key string, f func(newval []byte), stopCh <-chan st
 
 // MonitTreeFunc will listen for changes in the store refered to any variable in the tree.
 // If a variable does not exist yet, it will be reported upon creation.
+func MonitTreeFunc(dir string, f func(key string, newval []byte), stopCh <-chan struct{}) error {
+	return g.MonitTreeFunc(dir, f, stopCh)
+}
 func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), stopCh <-chan struct{}) error {
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
@@ -179,6 +190,7 @@ func getKV(kvs backend.Backend, bucket, key string) string {
 	return ""
 }
 
+func ListKV(path string) ([]*backend.KVPair, error) { return g.ListKV(path) }
 func (gc *GetConf) ListKV(path string) ([]*backend.KVPair, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -204,6 +216,9 @@ func (gc *GetConf) ListKV(path string) ([]*backend.KVPair, error) {
 // WatchWithFunc will listen for a key to change in the store. The variable must exist in the
 // store prior to its use.
 // If creation must be watched, use MonitTreeFunc instead.
+func WatchWithFunc(ctx context.Context, key string, f func(newval []byte)) error {
+	return g.WatchWithFunc(ctx, key, f)
+}
 func (gc *GetConf) WatchWithFunc(ctx context.Context, key string, f func(newval []byte)) error {
 	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
 	// and watch value using it so the key passed will not be the full path anymore.
@@ -239,6 +254,9 @@ func (gc *GetConf) WatchWithFunc(ctx context.Context, key string, f func(newval 
 	return nil
 }
 
+func WatchTreeWithFunc(ctx context.Context, dir string, f func(*backend.KVPair)) error {
+	return g.WatchTreeWithFunc(ctx, dir, f)
+}
 func (gc *GetConf) WatchTreeWithFunc(ctx context.Context, dir string, f func(*backend.KVPair)) error {
 	evt, err := gc.KVStore.WatchTree(ctx, dir)
 	if err != nil {
@@ -267,6 +285,7 @@ func (gc *GetConf) WatchTreeWithFunc(ctx context.Context, dir string, f func(*ba
 }
 
 // SetWatchTimeDuration sets the wait time for a watch connection to ConsulBackend
+func SetWatchTimeDuration(time time.Duration) { g.SetWatchTimeDuration(time) }
 func (g *GetConf) SetWatchTimeDuration(time time.Duration) {
 	g.KVStore.SetWatchTimeDuration(time)
 }
