@@ -270,3 +270,17 @@ func (gc *GetConfV2) loadFromFlags() {
 func (g2 *GetConfV2) setConfigFromFlag(f *flag.Flag) {
 	g2.setOption(f.Name, f.Value.String(), "flag")
 }
+
+// Set adds the value received as the value of the key.
+// If the key does not exist, an error ErrKeyNotFound is returned
+func SetV2(key, value string) error { return g.Set(key, value) }
+func (gc *GetConfV2) Set(key, value string) error {
+	if reflect.TypeOf(value).String() != "string" {
+		return ErrValueNotString
+	}
+	if _, ok := g2.options[key]; !ok {
+		return ErrKeyNotFound
+	}
+	g2.setOption(key, value, "user")
+	return nil
+}
