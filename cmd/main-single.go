@@ -18,7 +18,7 @@ type Config struct {
 	BigInt               int64     `getconf:"bigint, info: test int64 setting"`
 	Pi                   float64   `getconf:"pi, info: value of PI"`
 	IgnoreMe             int       `getconf:"-"`
-	IgnoreField          bool      `getconf:"info: empty field last not allowed, surprise"`
+	IgnoreField          bool      `getconf:", info: empty field last not allowed, surprise"`
 	SupportedTimeFormat  time.Time `getconf:"thetime, info: sample empty time value"`
 	SupportedTimeFormat1 time.Time `getconf:"thetime1, default: 2017-10-24T22:11:12+00:00"`
 	SupportedTimeFormat2 time.Time `getconf:"thetime2, default: 2017-10-24T22:21:23.159239900+00:00"`
@@ -38,20 +38,24 @@ var (
 )
 
 func main() {
-	getconf.LoadConfig("TGC", &Config{})
+	getconf.Load(&getconf.LoaderOptions{
+		ConfigStruct: &Config{},
+		SetName:      "gc2test",
+		EnvPrefix:    "TGC",
+	})
 
 	fmt.Println("Starting test app...")
 
-	nullValue, err := getconf.GetInt("integer")
-	if err != nil {
-		fmt.Printf("integer Type = %T, integer=%d | error=%s\n", nullValue, nullValue, err)
-	}
+	// nullValue, err := getconf.GetInt("integer")
+	// if err != nil {
+	// 	fmt.Printf("integer Type = %T, integer=%d | error=%s\n", nullValue, nullValue, err)
+	// }
 
-	d, _ := getconf.GetBool("debug")
-	fmt.Printf("Debug = %v (Type: %T)\n", d, d)
+	// d, _ := getconf.GetBool("debug")
+	// fmt.Printf("Debug = %v (Type: %T)\n", d, d)
 
-	t := getconf.GetTime("thetime")
-	fmt.Printf("thetime = %v (Type: %T)\n", t, t)
+	// t := getconf.GetTime("thetime")
+	// fmt.Printf("thetime = %v (Type: %T)\n", t, t)
 
 	fmt.Println("ALL OPTIONS:")
 	o := getconf.GetAll()
@@ -60,7 +64,7 @@ func main() {
 	}
 
 	fmt.Println("Testing consul:")
-	_, err = getconf.EnableKVStore(&getconf.KVOptions{
+	if err := getconf.EnableKVStore(&getconf.KVOptions{
 		Backend: "consul",
 		URLs:    []string{"localhost:8500"},
 		KVConfig: &backend.Config{
@@ -69,9 +73,8 @@ func main() {
 			PersistConnection: true,
 			Prefix:            kvPrefix,
 		},
-	})
-	if err != nil {
-		log.Panicf("cannot get GetConf. getconf error: %v\n", err)
+	}); err != nil {
+		log.Panicf("cannot get bind to kv store. getconf error: %v\n", err)
 	}
 
 	for _, item := range []string{
@@ -159,10 +162,11 @@ func main() {
 		time.Sleep(1 * time.Second)
 	*/
 
-	intval, err := getconf.GetInt("integer")
-	if err != nil {
-		fmt.Printf("integer Type = %T, integer=%d | error=%s\n", intval, intval, err)
-	}
-	fmt.Printf("\tType: %T, Key: %s - Value: %v\n", intval, "integer", intval)
+	// intval, err := getconf.GetInt("integer")
+	// if err != nil {
+	// 	fmt.Printf("integer Type = %T, integer=%d | error=%s\n", intval, intval, err)
+	// }
+	// fmt.Printf("\tType: %T, Key: %s - Value: %v\n", intval, "integer", intval)
+
 	fmt.Println("Quitting test app")
 }
