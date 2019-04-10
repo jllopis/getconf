@@ -3,6 +3,7 @@ package getconf
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -79,6 +80,7 @@ func Load(lo *LoaderOptions) {
 	g2.options = make(map[string]*OptionV2)
 	// Parse client struct
 	g2.parsePtrStruct(lo.ConfigStruct, "")
+	loadFromEnvV2()
 }
 
 // BindStruct will set the given struct fields to the values that exists in
@@ -143,104 +145,112 @@ func parseTagsV2(t reflect.StructField, o *OptionV2, prefix string) error {
 	o.oType = t.Type.Kind()
 	if tag, exists := t.Tag.Lookup("getconf"); exists {
 		if tag = strings.TrimSpace(tag); tag != "" {
-			k := strings.Split(tag, ",")
-			if len(k[0]) > 0 {
-				if strings.TrimSpace(k[0]) == "-" {
-					return errors.New("untrack")
-				}
-				o.name = strings.ToLower(prefix + k[0])
+			if tag == "-" {
+				return errors.New("untrack")
 			}
-			for _, sk := range k[1:] {
-				kv := strings.SplitN(sk, ":", 2)
-				switch strings.TrimSpace(kv[0]) {
+
+			name, opts := parseTag(tag)
+			if name != "" {
+				o.name = strings.ToLower(prefix + name)
+			}
+			k := strings.Split(opts, ",")
+
+			for _, sk := range k {
+				key, value := getKeyValFromTagOption(sk)
+				switch key {
 				case "default":
-					o.defValue = strings.TrimSpace(kv[1])
+					o.defValue = value
 					o.value = getTypedValue(o.defValue, o.oType)
 					o.updatedAt = time.Now().UTC()
 					o.lastSetBy = "default"
 				case "info":
-					o.usage = strings.TrimSpace(kv[1])
+					o.usage = value
 				}
 			}
 		}
 	}
-	// return strings.ToLower(prefix + name)
 	return nil
 }
 
-// func (gc *GetConfV2) parseStruct(structPtr interface{}, prefix string) error {
-// 	s := reflect.ValueOf(structPtr).Elem()
-// 	for i := 0; i < s.NumField(); i++ {
-// 		fmt.Printf("[getconf#parseStruct] iteration over struct fields: %d - %v -> %v\n", i, s.Type().Field(i).Name, s.String())
-// 		fieldType := s.Type().Field(i)
-// 		// fieldPtr := s.Field(i).Addr().Interface()
+func getKeyValFromTagOption(opt string) (string, string) {
+	if idx := strings.Index(opt, ":"); idx != -1 {
+		return strings.TrimSpace(opt[:idx]), strings.TrimSpace(opt[idx+1:])
 
-// 		opt := &OptionV2{
-// 			name:  strings.ToLower(prefix + fieldType.Name),
-// 			oType: s.Field(i).Kind(),
-// 		}
+	}
+	fmt.Printf("ilegal option: %s\n\n", opt)
+	return "", ""
+}
 
-// 		tag := fieldType.Tag
-// 		if t := tag.Get("getconf"); t != "" {
-// 			err := parseTagsV2(opt, t)
-// 			if err != nil && err.Error() == "untrack" {
-// 				//log.Printf("getconf.parse: option %s not tracked!", o.name)
-// 				continue
-// 			}
-// 		}
-
-// 		switch fieldType.Type.Kind() {
-// 		case reflect.Struct:
-// 			switch reflect.ValueOf(structPtr).Interface().(type) {
-// 			case time.Time:
-// 				continue
-// 			default:
-// 				fmt.Printf("[GetConfV2#parseStruct] found nested struct: %s (%v)\n", fieldType.Name, s.Field(i).Kind())
-// 				gc.parseStruct(fieldType.Type, opt.name+g2.keyDelim)
-// 			}
-// 		}
-
-// 		g2.options[opt.name] = opt
-// 	}
-
-// 	return nil
-// }
-
-// // parseTags read the tags and set the corresponding variables in the Option struct
-// func parseTagsV2(o *OptionV2, t string) error {
-// 	for i, k := range strings.Split(t, ",") {
-// 		if strings.TrimSpace(k) == "-" {
-// 			return errors.New("untrack")
-// 		}
-// 		kv := strings.SplitN(k, ":", 2)
-// 		if len(kv) == 1 {
-// 			if i == 0 {
-// 				o.name = strings.TrimSpace(kv[0])
-// 			}
-// 			continue
-// 		}
-// 		switch strings.TrimSpace(kv[0]) {
-// 		case "default":
-// 			o.defValue = strings.TrimSpace(kv[1])
-// 			o.value = getTypedValue(o.defValue, o.oType)
-// 			o.updatedAt = time.Now().UTC()
-// 			o.lastSetBy = "default"
-// 		case "info":
-// 			o.usage = strings.TrimSpace(kv[1])
-// 		}
-// 	}
-// 	return nil
-// }
+func parseTag(tag string) (string, string) {
+	if idx := strings.Index(tag, ","); idx != -1 {
+		return tag[:idx], strings.TrimSpace(tag[idx+1:])
+	}
+	return tag, ""
+}
 
 func GetAllV2() map[string]interface{} { return g2.GetAllV2() }
 func (gc *GetConfV2) GetAllV2() map[string]interface{} {
-	fmt.Printf("getconf: have %d options defined\n", len(g2.options))
 	opts := make(map[string]interface{})
 	for _, x := range g2.options {
-		// if x.value == nil {
-		// 	continue
-		// }
+		if x.value == nil {
+			continue
+		}
 		opts[x.name] = x.value
 	}
 	return opts
+}
+
+func loadFromEnvV2() {
+	for _, o := range g2.options {
+		val := getEnvV2(g2.envPrefix, o.name, g2.keyDelim)
+		if val != "" {
+			g2.setOption(o.name, val, "env")
+		}
+	}
+}
+
+// getEnvV2 Looks up variable in environment.
+// env variables must be uppercase and the only separator allowed in the underscore. Dots and middle score
+// will be changed to underscore.
+//
+// The variable name must be preceded by a prefix. If no prefix is provided the variable will be ignored.
+//
+// There can be nested variables by using 'separator'. By defalut, separator is '__'. They will be transformed
+// from '::' when the key is set for reading from ENV:
+//
+//     ex: parent::child -> GC2_PARENT__CHILD
+//
+// Taken from https://github.com/rakyll/globalconf/blob/master/globalconf.go#L159
+func getEnvV2(envPrefix, flagName, keyDelim string) string {
+	// If we haven't set an EnvPrefix, don't lookup vals in the ENV
+	if envPrefix == "" {
+		return ""
+	}
+	if !strings.HasSuffix(envPrefix, "_") {
+		envPrefix += "_"
+	}
+	flagName = strings.Replace(flagName, ".", "_", -1)
+	flagName = strings.Replace(flagName, "-", "_", -1)
+	flagName = strings.Replace(flagName, keyDelim, "__", -1)
+	envKey := strings.ToUpper(envPrefix + flagName)
+
+	return os.Getenv(envKey)
+}
+
+func (gc *GetConfV2) setOption(name, value, setBy string) {
+	gc.options[name].mu.Lock()
+	defer gc.options[name].mu.Unlock()
+
+	gc.options[name].value = getTypedValue(value, gc.options[name].oType)
+	gc.options[name].updatedAt = time.Now().UTC()
+	gc.options[name].lastSetBy = setBy
+}
+
+func String() string { return g2.String() }
+func (gc *GetConfV2) String() string {
+	var s string
+	for _, o := range g2.options {
+		s = s + fmt.Sprintf("\tKey: %s, Default: %v, Value: %v, Type: %v, LastSetBy: %v, UpdatedAt: %v\n", o.name, o.defValue, o.value, o.oType, o.lastSetBy, o.updatedAt)
+	}
+	return fmt.Sprintf("CONFIG OPTIONS:\n%s\n", s)
 }
