@@ -2,6 +2,7 @@ package getconf
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"reflect"
@@ -58,14 +59,14 @@ func (o *OptionV2) String() string {
 }
 
 // Set sets the value of the Option
-func (o *OptionV2) Set(s interface{}) error {
+func (o *OptionV2) Set(s string) error {
 	o.value = s
 	return nil
 }
 
 // IsBoolFlag returns true if the Options is of type Bool or false otherwise
 func (o *OptionV2) IsBoolFlag() bool {
-	return reflect.ValueOf(o.value).Elem().Kind() == reflect.Bool
+	return o.oType == reflect.Bool
 }
 
 // Load will read the configuration options and keep a references in its own struct.
@@ -81,6 +82,7 @@ func Load(lo *LoaderOptions) {
 	// Parse client struct
 	g2.parsePtrStruct(lo.ConfigStruct, "")
 	loadFromEnvV2()
+	g2.loadFromFlags()
 }
 
 // BindStruct will set the given struct fields to the values that exists in
@@ -253,4 +255,18 @@ func (gc *GetConfV2) String() string {
 		s = s + fmt.Sprintf("\tKey: %s, Default: %v, Value: %v, Type: %v, LastSetBy: %v, UpdatedAt: %v\n", o.name, o.defValue, o.value, o.oType, o.lastSetBy, o.updatedAt)
 	}
 	return fmt.Sprintf("CONFIG OPTIONS:\n%s\n", s)
+}
+
+func (gc *GetConfV2) loadFromFlags() {
+	// Register flags in flagSet and parse it
+	flagConfigSet := flag.NewFlagSet(gc.setName, flag.ContinueOnError) //  flag.ExitOnError
+	for _, o := range g2.options {
+		flagConfigSet.Var(o, o.name, o.usage)
+	}
+	flagConfigSet.Parse(os.Args[1:])
+	flagConfigSet.Visit(g2.setConfigFromFlag)
+}
+
+func (g2 *GetConfV2) setConfigFromFlag(f *flag.Flag) {
+	g2.setOption(f.Name, f.Value.String(), "flag")
 }
