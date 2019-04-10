@@ -1,3 +1,5 @@
+// +build ignore
+
 // Package getconf load the variables to be used in a program from different sources:
 //
 //   1. Environment variables
