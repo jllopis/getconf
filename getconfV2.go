@@ -325,6 +325,31 @@ func getTypedValue(opt string, t reflect.Kind) interface{} {
 			return int64(value)
 		}
 		return 0
+	case reflect.Uint:
+		if value, err := strconv.ParseUint(opt, 10, 0); err == nil {
+			return uint(value)
+		}
+		return 0
+	case reflect.Uint8:
+		if value, err := strconv.ParseUint(opt, 10, 8); err == nil {
+			return uint8(value)
+		}
+		return 0
+	case reflect.Uint16:
+		if value, err := strconv.ParseUint(opt, 10, 16); err == nil {
+			return uint16(value)
+		}
+		return 0
+	case reflect.Uint32:
+		if value, err := strconv.ParseUint(opt, 10, 32); err == nil {
+			return uint32(value)
+		}
+		return 0
+	case reflect.Uint64:
+		if value, err := strconv.ParseUint(opt, 10, 64); err == nil {
+			return uint64(value)
+		}
+		return 0
 	case reflect.Float32:
 		if value, err := strconv.ParseFloat(opt, 32); err == nil {
 			return float32(value)
