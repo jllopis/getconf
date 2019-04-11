@@ -15,7 +15,7 @@ type Config struct {
 	Backend              string    `getconf:,"default: etcd, info: backend to use"`
 	Debug                bool      `getconf:"debug, default: false, info: enable debug logging"`
 	MyInt                int       `getconf:"integer, info: test int setting"`
-	BigInt               int64     `getconf:"bigint, info: test int64 setting"`
+	BigInt               int64     `getconf:"bigint, default: 38457825783724523, info: test int64 setting"`
 	Pi                   float64   `getconf:"pi, info: value of PI"`
 	IgnoreMe             int       `getconf:"-"`
 	IgnoreField          bool      `getconf:", info: empty field last not allowed, surprise"`
@@ -46,16 +46,16 @@ func main() {
 
 	fmt.Println("Starting test app...")
 
-	// nullValue, err := getconf.GetInt("integer")
-	// if err != nil {
-	// 	fmt.Printf("integer Type = %T, integer=%d | error=%s\n", nullValue, nullValue, err)
-	// }
+	fmt.Printf("Backend=%s (%T)\n", getconf.GetString("backend"), getconf.GetString("backend"))
 
-	// d, _ := getconf.GetBool("debug")
-	// fmt.Printf("Debug = %v (Type: %T)\n", d, d)
+	fmt.Printf("bigint=%d (%T)\n", getconf.GetInt64("bigint"), getconf.GetInt64("bigint"))
+	fmt.Printf("bigint as string = %s (%T)\n", getconf.GetString("bigint"), getconf.GetString("bigint"))
 
-	// t := getconf.GetTime("thetime")
-	// fmt.Printf("thetime = %v (Type: %T)\n", t, t)
+	fmt.Printf("Debug = %t (Type: %T)\n", getconf.GetBool("debug"), getconf.GetBool("debug"))
+	fmt.Printf("bool as string = %s (%T) ... and as int = %d (%T)\n", getconf.GetString("debug"), getconf.GetString("debug"), getconf.GetInt("debug"), getconf.GetInt("debug"))
+
+	t := getconf.GetTime("thetime")
+	fmt.Printf("thetime = %v (Type: %T)\n", t, t)
 
 	fmt.Println("ALL OPTIONS:")
 	o := getconf.GetAll()
@@ -162,11 +162,7 @@ func main() {
 		time.Sleep(1 * time.Second)
 	*/
 
-	// intval, err := getconf.GetInt("integer")
-	// if err != nil {
-	// 	fmt.Printf("integer Type = %T, integer=%d | error=%s\n", intval, intval, err)
-	// }
-	// fmt.Printf("\tType: %T, Key: %s - Value: %v\n", intval, "integer", intval)
+	fmt.Printf("integer after consul=%d (%T)\n", getconf.GetInt("integer"), getconf.GetInt("integer"))
 
 	fmt.Println("Quitting test app")
 }

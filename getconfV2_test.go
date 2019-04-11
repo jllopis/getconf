@@ -34,6 +34,12 @@ type tmpConfig struct {
 }
 
 func TestEnv(t *testing.T) {
+	g2 = &GetConf{
+		setName:   "gcv2",
+		envPrefix: "GCV2",
+		keyDelim:  "::",
+	}
+
 	tests := []struct {
 		key   string
 		value string
