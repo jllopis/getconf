@@ -157,7 +157,7 @@ The use is the same as the simple case but, nested structures have some specific
 * the variable name in the config struct can be any valid name and can include chars, numbers or hyphen
 * when the variables are loaded from the environment, use '__' as separator between father and child. All chars must be uppercase
 * when the variables are loaded from the flags, use also '__' as separator but use the same case as it is defined in the struct
-* when accessing a variable you must use their name. With nested variables you must use the separator '::'
+* when accessing a variable you must use their name. With nested variables you must use the separator defines (defaults to '::')
 
 So lets see the same example as before but adding some nested variables.
 
@@ -383,9 +383,10 @@ We can also see that a context is provided in the first param. This allows to ca
 
 The options can be defined in:
 
-1. environment
-2. command line flags
-3. remote key/val store
+1. default values from the struct definition
+2. environment
+3. command line flags
+4. remote key/val store
 
 The order is the specified, meaning that the last option will win (if you set an environment variable it can be ovewritten by a command line flag). The last value read will be from the kv store.
 
@@ -411,6 +412,13 @@ The type `time.Time` supports different layouts (see godoc), like:
 Any other type will be discarded. A `time.Time` layout different that the ones supported (i.e. epoch in miliseconds) will produce an invalid result.
 
 If a value can not be matched to the variable type, it will be discarded and the variable set to **nil**.
+
+The use of nested structures is allow but have some rules:
+
+* the variable name in the config struct can be any valid name and can include chars, numbers or hyphen
+* when the variables are loaded from the environment, use '__' as separator between father and child. All chars must be uppercase. Ex: `GCV2_PARENT__VAR -> parent::var`
+* when the variables are loaded from the flags, use also '__' as separator but use the same case as it is defined in the struct. `--parent__var -> parent::var`
+* when accessing a variable you must use their name. With nested variables you must use the separator defines (defaults to '::'). Ex: `GetString("parent::var")`
 
 ### struct tags
 
