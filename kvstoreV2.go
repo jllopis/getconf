@@ -28,10 +28,11 @@ func EnableKVStore(opts *KVOptions) error { return g2.EnableKVStore(opts) }
 func (gc *GetConf) EnableKVStore(opts *KVOptions) error {
 	switch strings.ToLower(opts.Backend) {
 	case "consul":
-		if opts.KVConfig.Prefix != "" && !strings.HasSuffix(opts.KVConfig.Prefix, "/") {
-			opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
-		}
-		opts.KVConfig.Prefix = opts.KVConfig.Prefix + gc.GetSetName() + "/"
+		// if opts.KVConfig.Prefix != "" && !strings.HasSuffix(opts.KVConfig.Prefix, "/") {
+		// 	opts.KVConfig.Prefix = opts.KVConfig.Prefix + "/"
+		// }
+		g2.kvPrefix = opts.KVConfig.Prefix
+		g2.kvBucket = opts.KVConfig.Bucket
 
 		// Initialize a new store with consul
 		kv, err := consul.New(opts.URLs, opts.KVConfig)
@@ -167,15 +168,16 @@ func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), 
 
 func loadFromKV(opts *KVOptions) {
 	for _, o := range g2.options {
-		val := getKV(g2.kvStore, opts.KVConfig.Prefix+opts.KVConfig.Bucket, o.name)
+		name := strings.Replace(o.name, g2.keyDelim, "/", -1)
+		val := getKV(g2.kvStore, g2.kvPrefix+"/"+g2.setName+"/"+g2.kvBucket, name)
 		if val != "" {
 			g2.setOption(o.name, val, "kvstore")
 		}
 	}
 }
 
-func getKV(kvs backend.Backend, bucket, key string) string {
-	prefix := bucket
+func getKV(kvs backend.Backend, path, key string) string {
+	prefix := path
 
 	if prefix[len(prefix)-1] != '/' {
 		prefix += "/"
@@ -220,10 +222,9 @@ func (gc *GetConf) ListKV(path string) ([]*backend.KVPair, error) {
 func WatchWithFunc(ctx context.Context, key string, f func(newval []byte)) error {
 	return g2.WatchWithFunc(ctx, key, f)
 }
-func (gc *GetConf) WatchWithFunc(ctx context.Context, key string, f func(newval []byte)) error {
-	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
-	// and watch value using it so the key passed will not be the full path anymore.
-	// Possibly we will need to add setName and Bucket to the Option struct
+func (gc *GetConf) WatchWithFunc(ctx context.Context, name string, f func(newval []byte)) error {
+	key := getKVKey(name)
+	fmt.Printf("monitoring key = %s\n", key)
 	if ok, err := gc.kvStore.Exists(key); err != nil {
 		// if ok, key exists and there was an error so we return
 		// if !ok, key does not exist so we can wait for its creation
@@ -237,12 +238,14 @@ func (gc *GetConf) WatchWithFunc(ctx context.Context, key string, f func(newval 
 	}
 	// if changed, exec func
 	go func() {
-		split := strings.SplitAfter(key, "/")
-		k := split[len(split)-1]
+		// split := strings.SplitAfter(key, "/")
+		// k := split[len(split)-1]
+		k := getGCKey(key)
 		for {
 			select {
 			case val := <-evt:
 				if val != nil {
+					fmt.Printf("changed value for key %s -> %s\nOrig key: %s\n", k, val, key)
 					gc.setOption(k, string(val), "kvstore")
 					f(val)
 				}
@@ -253,6 +256,17 @@ func (gc *GetConf) WatchWithFunc(ctx context.Context, key string, f func(newval 
 		}
 	}()
 	return nil
+}
+
+func getKVKey(nm string) string {
+	name := strings.Replace(nm, g2.keyDelim, "/", -1)
+	fmt.Printf("kvPrefix='%s', g2.setName='%s', g2kvBucket='%s', name='%s'\n", g2.kvPrefix, g2.setName, g2.kvBucket, name)
+	return g2.kvPrefix + "/" + g2.setName + "/" + g2.kvBucket + "/" + name
+}
+
+func getGCKey(k string) string {
+	split := strings.SplitAfter(k, g2.kvPrefix+"/"+g2.setName+"/"+g2.kvBucket+"/")
+	return strings.Replace(split[len(split)-1], "/", "::", -1)
 }
 
 func WatchTreeWithFunc(ctx context.Context, dir string, f func(*backend.KVPair)) error {
