@@ -142,6 +142,9 @@ func (s *ConsulBackend) List(ctx context.Context, key string) ([]*backend.KVPair
 func (s *ConsulBackend) Watch(ctx context.Context, key string) (<-chan []byte, error) {
 	respChan := make(chan []byte, 0)
 	keypair, meta, err := s.client.KV().Get(key, nil)
+	if err != nil {
+		return nil, err
+	}
 	if keypair == nil && err == nil {
 		return nil, backend.ErrKeyNotFound
 	}
