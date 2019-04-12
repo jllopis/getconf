@@ -224,7 +224,6 @@ func WatchWithFunc(ctx context.Context, key string, f func(newval []byte)) error
 }
 func (gc *GetConf) WatchWithFunc(ctx context.Context, name string, f func(newval []byte)) error {
 	key := getKVKey(name)
-	fmt.Printf("monitoring key = %s\n", key)
 	if ok, err := gc.kvStore.Exists(key); err != nil {
 		// if ok, key exists and there was an error so we return
 		// if !ok, key does not exist so we can wait for its creation
@@ -266,7 +265,7 @@ func getKVKey(nm string) string {
 
 func getGCKey(k string) string {
 	split := strings.SplitAfter(k, g2.kvPrefix+"/"+g2.setName+"/"+g2.kvBucket+"/")
-	return strings.Replace(split[len(split)-1], "/", "::", -1)
+	return strings.Replace(split[len(split)-1], "/", g2.keyDelim, -1)
 }
 
 func WatchTreeWithFunc(ctx context.Context, dir string, f func(*backend.KVPair)) error {
