@@ -36,6 +36,8 @@ type GetConf struct {
 	setName   string
 	envPrefix string
 	keyDelim  string
+	kvPrefix  string // ej: "/settings/apps"
+	kvBucket  string // ej: "v1"
 }
 
 // Option is the struct that holds information about the Option
