@@ -379,6 +379,106 @@ Nice. The monitorin function `getconf.WatchWithFunc` take a func as param that w
 
 We can also see that a context is provided in the first param. This allows to cancel the function anytime (in the sample we had a fixed timer of 10s).
 
+## Watch changes in a tree
+
+If you need to monitor a variable that still do not exists in remote config server or want to be notified about changes in more than one variable, you can use `WatchTreeFunc` than will monitor the variables below the tree specified and will execute the function provided. The function will get the variable that has been updated: `f func(*backend.KVPair)`.
+
+Lets see an example:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/jllopis/getconf"
+	"github.com/jllopis/getconf/backend"
+)
+
+type Config struct {
+	Server struct {
+		Host string `getconf:", default: localhost, info: this is the hostname"`
+		Port int    `getconf:"default-port, info: service port"`
+	}
+	Debug    bool    `getconf:"debug, default: false, info: enable debug logging"`
+	FloatVar float32 `getconf:"fvar, info: a float32 variable"`
+	IgnoreMe string  `getconf:"-"`
+}
+
+func main() {
+	fmt.Println("Starting test app...")
+
+	// Load and set the variables defined in Config struct
+	getconf.Load(&getconf.LoaderOptions{
+		ConfigStruct: &Config{},
+		KeyDelim:     ".",
+	})
+
+	fmt.Printf("prior to watch tree, variable is not set in getconf: fvar=%f\n", getconf.GetFloat32("fvar"))
+
+	fmt.Println("Enabling consul...")
+	if err := getconf.EnableKVStore(&getconf.KVOptions{
+		Backend: "consul",
+		URLs:    []string{getconf.GetString("server.host") + ":" + getconf.GetString("server.default-port")},
+		// URLs: []string{"localhost:8500"},
+		KVConfig: &backend.Config{
+			ConnectionTimeout: 10 * time.Second,
+			Prefix:            "/settings/apps",
+			PersistConnection: true,
+			Bucket:            "v1",
+		},
+	}); err != nil {
+		log.Panicf("cannot get bind to kv store. getconf error: %v\n", err)
+	}
+
+	// and after binding to consul...
+	fmt.Printf("[Port value] server.default-port = %d (Type: %T)\n", getconf.GetInt("default-port"), getconf.GetInt("default-port"))
+
+	path := "/settings/apps/gcv2/v1"
+	fmt.Printf("Monitoring tree %s\n", path)
+	ctx, cancel := context.WithCancel(context.Background())
+	getconf.SetWatchTimeDuration(1 * time.Second)
+	err := getconf.WatchTreeWithFunc(ctx, path, func(kv *backend.KVPair) {
+		fmt.Printf("GOT NEW VALUE: %s = %s\n", kv.Key, kv.Value)
+	})
+	if err != nil {
+		fmt.Printf("Error trying to watch tree at: %v\tError: %s\n", path, err.Error())
+	}
+	time.Sleep(10 * time.Second)
+	cancel()
+
+	fmt.Printf("the variable is now correctly set in getconf: fvar=%f\n", getconf.GetFloat32("fvar"))
+
+	fmt.Println("Quitting test app")
+}
+```
+
+```
+ᐅ GCV2_SERVER__DEFAULT_PORT=8500 go run littltest.go
+Starting test app...
+prior to watch tree, variable is not set in getconf: fvar=0.000000
+Enabling consul...
+[Port value] server.default-port = 0 (Type: int)
+Monitoring tree /settings/apps/gcv2/v1
+GOT NEW VALUE: settings/apps/gcv2/v1/debug = true
+GOT NEW VALUE: settings/apps/gcv2/v1/server/default-port = 8000
+GOT NEW VALUE: settings/apps/gcv2/v1/server/host = http://www.acb.com
+```
+
+Now, go to consul and create `settings/apps/gcv2/v1/fvar`. You will see the created variable is notified and then set in `GetConf`: 
+```
+GOT NEW VALUE: settings/apps/gcv2/v1/debug = true
+GOT NEW VALUE: settings/apps/gcv2/v1/fvar = 3.1415926535897932384626433832795028841971693993751058209749445923078164062862
+GOT NEW VALUE: settings/apps/gcv2/v1/server/default-port = 8000
+GOT NEW VALUE: settings/apps/gcv2/v1/server/host = http://www.acb.com
+the variable is now correctly set in getconf: fvar=3.141593
+Quitting test app
+```
+The `WatchTreeFunc` will return all variables within the _tree_ when a change occur. This could change in the future notifying only the key that has changed.
+
 ## How it works
 
 The options can be defined in:
