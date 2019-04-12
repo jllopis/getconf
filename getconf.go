@@ -12,6 +12,7 @@ import (
 	"github.com/jllopis/getconf/backend"
 )
 
+// g2 is the static GetConf to be used directly by the user
 var g2 *GetConf
 
 var (
@@ -30,6 +31,7 @@ func init() {
 	}
 }
 
+// GetConf defines the main elements to appropiately configure getconf
 type GetConf struct {
 	kvStore   backend.Backend
 	options   map[string]*Option
@@ -40,6 +42,7 @@ type GetConf struct {
 	kvBucket  string // ej: "v1"
 }
 
+// Option holds the data needed to manage the variables in getconf
 // Option is the struct that holds information about the Option
 type Option struct {
 	name      string       // name as it appears on command line
@@ -77,6 +80,7 @@ func (o *Option) IsBoolFlag() bool {
 	return o.oType == reflect.Bool
 }
 
+// GetSetName returns the name of the set used to store the options in a Backend
 func GetSetName() string { return g2.GetSetName() }
 func (gc *GetConf) GetSetName() string {
 	return gc.setName
@@ -101,7 +105,7 @@ func Load(lo *LoaderOptions) {
 
 	g2.options = make(map[string]*Option)
 	// Parse client struct
-	g2.parsePtrStruct(lo.ConfigStruct, "")
+	g2.parseStruct(lo.ConfigStruct, "")
 	loadFromEnv()
 	g2.loadFromFlags()
 }
@@ -112,7 +116,9 @@ func Load(lo *LoaderOptions) {
 // 	return nil
 // }
 
-func (gc *GetConf) parsePtrStruct(s interface{}, prefix string) {
+// parseStruct parses the config struct and set the options from it, using prefix to
+// name nested variables.
+func (gc *GetConf) parseStruct(s interface{}, prefix string) {
 	x := indirect(s)
 	elem := reflect.ValueOf(x)
 	for i := 0; i < elem.NumField(); i++ {
@@ -134,7 +140,7 @@ func (gc *GetConf) parsePtrStruct(s interface{}, prefix string) {
 			if err != nil && err.Error() == "untrack" {
 				continue
 			}
-			g2.parsePtrStruct(fieldValue.Interface(), opt.name+g2.keyDelim)
+			g2.parseStruct(fieldValue.Interface(), opt.name+g2.keyDelim)
 			continue
 		} else {
 			opt := new(Option)
@@ -179,6 +185,9 @@ func (gc *GetConf) Set(key, value string) error {
 	return nil
 }
 
+// setOption set the option in gc.options that matches name with value.
+//
+// It also set the lastSetBy field to indicate who assigned the current value to the option.
 func (gc *GetConf) setOption(name, value, setBy string) {
 	if _, ok := gc.options[name]; !ok {
 		return
@@ -191,6 +200,7 @@ func (gc *GetConf) setOption(name, value, setBy string) {
 	gc.options[name].lastSetBy = setBy
 }
 
+// String implements Stringer
 func String() string { return g2.String() }
 func (gc *GetConf) String() string {
 	var s string
@@ -200,6 +210,7 @@ func (gc *GetConf) String() string {
 	return fmt.Sprintf("CONFIG OPTIONS:\n%s\n", s)
 }
 
+// loadFromFlags parse the command line flagas and set the options values accordingly
 func (gc *GetConf) loadFromFlags() {
 	// Register flags in flagSet and parse it
 	flagConfigSet := flag.NewFlagSet(gc.setName, flag.ContinueOnError) //  flag.ExitOnError
@@ -210,6 +221,7 @@ func (gc *GetConf) loadFromFlags() {
 	flagConfigSet.Visit(g2.setConfigFromFlag)
 }
 
+// setConfigFromFlag calls setOption to assign the value to an option readed from flags
 func (g2 *GetConf) setConfigFromFlag(f *flag.Flag) {
 	g2.setOption(f.Name, f.Value.String(), "flag")
 }
