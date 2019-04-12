@@ -1,16 +1,13 @@
 .PHONY: help
 .DEFAULT_GOAL := help
 
-install-dev: deps ## Install dependencies and prepared development configuration
-	@echo "Installing development utils"
-
-run-dev: ## Run the sample test program with a Consul backend
+run-dev: ## Run a Consul backend for testing
 	@echo "Running consul on port 8500"
-	@docker-compose -f cmd/docker-compose.yml up -d gconf.consul
+	@docker-compose -f docker-compose.yml up -d gconf.consul
 
 stop-dev: ## Stop the Consul backend for testing
-	@echo "Running consul on port 8500"
-	@docker-compose -f cmd/docker-compose.yml stop gconf.consul
+	@echo "Stopping consul instance"
+	@docker-compose -f docker-compose.yml stop gconf.consul
 
 # https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help:
