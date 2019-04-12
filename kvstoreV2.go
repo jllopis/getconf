@@ -81,91 +81,6 @@ func (gc *GetConf) EnableKVStore(opts *KVOptions) error {
 	return nil
 }
 
-// MonitFunc will listen for a key to change in the store. The variable must exists in the
-// store prior to its use.
-// If creation must be watched, use MonitTreeFunc instead.
-// Deprecated. This function is deprecated and will be removed in the next release. Use WatchWithFunc instead
-func MonitFunc(key string, f func(newval []byte), stopCh <-chan struct{}) error {
-	return g2.MonitFunc(key, f, stopCh)
-}
-func (gc *GetConf) MonitFunc(key string, f func(newval []byte), stopCh <-chan struct{}) error {
-	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
-	// and watch value using it so the key passed will not be the full path anymore.
-	// Possibly we will need to add setName and Bucket to the Option struct
-	if ok, err := gc.kvStore.Exists(key); err != nil {
-		// if ok, key exists and there was an error so we return
-		// if !ok, key does not exist so we can wait for its creation
-		if ok {
-			return err
-		}
-	}
-	evt, err := gc.kvStore.Watch(context.TODO(), key)
-	if err != nil {
-		return err
-	}
-	// if changed, exec func
-	go func(stop <-chan struct{}) {
-		for {
-			select {
-			case value := <-evt:
-				if value != nil {
-					f(value)
-				}
-			case <-stopCh:
-				fmt.Printf("Closed watch on %v\n", key)
-				return
-			}
-		}
-	}(stopCh)
-	return nil
-}
-
-// MonitTreeFunc will listen for changes in the store refered to any variable in the tree.
-// If a variable does not exist yet, it will be reported upon creation.
-func MonitTreeFunc(dir string, f func(key string, newval []byte), stopCh <-chan struct{}) error {
-	return g2.MonitTreeFunc(dir, f, stopCh)
-}
-func (gc *GetConf) MonitTreeFunc(dir string, f func(key string, newval []byte), stopCh <-chan struct{}) error {
-	// TODO (jllopis):  build path using setName + "/" + Bucket + "/" + key
-	// and watch value using it so the key passed will not be the full path anymore.
-	// Possibly we will need to add setName and Bucket to the Option struct
-	if ok, err := gc.kvStore.Exists(dir); err != nil {
-		// if ok, dir exists and there was an error so we return
-		// if !ok, dir does not exist so we can wait for its creation
-		if ok {
-			return err
-		}
-	}
-	ctx, ctxCancel := context.WithCancel(context.Background()) // debe llegar como parámetro a la función para que le cliente lo pueda cancelar
-	evt, err := gc.kvStore.WatchTree(ctx, dir)
-	if err != nil {
-		ctxCancel()
-		return err
-	}
-	// if changed, exec func
-	go func() {
-		defer ctxCancel()
-		for {
-			select {
-			case pairList := <-evt:
-				for _, pair := range pairList {
-					if pair != nil {
-						if dir[len(dir)-1] != '/' {
-							dir += "/"
-						}
-						split := strings.SplitAfter(pair.Key, dir)
-						key := split[len(split)-1]
-						gc.setOption(key, string(pair.Value), "kvstore")
-						f(pair.Key, pair.Value)
-					}
-				}
-			default:
-			}
-		}
-	}()
-	return nil
-}
-
 func loadFromKV(opts *KVOptions) {
 	for _, o := range g2.options {
 		name := strings.Replace(o.name, g2.keyDelim, "/", -1)
@@ -237,8 +152,6 @@ func (gc *GetConf) WatchWithFunc(ctx context.Context, name string, f func(newval
 	}
 	// if changed, exec func
 	go func() {
-		// split := strings.SplitAfter(key, "/")
-		// k := split[len(split)-1]
 		k := getGCKey(key)
 		for {
 			select {
