@@ -175,6 +175,9 @@ func (gc *GetConf) Set(key, value string) error {
 }
 
 func (gc *GetConf) setOption(name, value, setBy string) {
+	if _, ok := gc.options[name]; !ok {
+		return
+	}
 	gc.options[name].mu.Lock()
 	defer gc.options[name].mu.Unlock()
 
