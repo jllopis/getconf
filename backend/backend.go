@@ -11,6 +11,7 @@ var (
 	ErrKeyNotFound = errors.New("key not found")
 )
 
+// Backend defines the interface that every Backend should implement
 type Backend interface {
 	// Get a value given its key
 	// It is safe to provide a timeout by using context.Timeout.
@@ -52,6 +53,7 @@ type ClientTLSConfig struct {
 	CACertFile string
 }
 
+// KVPair represents a key/value pair stored in the Backend
 type KVPair struct {
 	Key       string
 	Value     []byte

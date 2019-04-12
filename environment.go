@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// loadFromEnv query the environment with the options defined and get its value if they exist
 func loadFromEnv() {
 	for _, o := range g2.options {
 		val := getEnv(g2.envPrefix, o.name, g2.keyDelim)
