@@ -91,6 +91,9 @@ func (gc *GetConf) GetSetName() string {
 //   2. command line flags
 //   3. remote server (consul)
 func Load(lo *LoaderOptions) {
+	if lo.KeyDelim != "" {
+		g2.keyDelim = lo.KeyDelim
+	}
 	g2.options = make(map[string]*Option)
 	// Parse client struct
 	g2.parsePtrStruct(lo.ConfigStruct, "")
@@ -126,7 +129,7 @@ func (gc *GetConf) parsePtrStruct(s interface{}, prefix string) {
 			if err != nil && err.Error() == "untrack" {
 				continue
 			}
-			g2.parsePtrStruct(fieldValue.Interface(), opt.name+"::")
+			g2.parsePtrStruct(fieldValue.Interface(), opt.name+g2.keyDelim)
 			continue
 		} else {
 			opt := new(Option)
