@@ -94,6 +94,11 @@ func Load(lo *LoaderOptions) {
 	if lo.KeyDelim != "" {
 		g2.keyDelim = lo.KeyDelim
 	}
+
+	if lo.EnvPrefix != "" {
+		g2.envPrefix = lo.EnvPrefix
+	}
+
 	g2.options = make(map[string]*Option)
 	// Parse client struct
 	g2.parsePtrStruct(lo.ConfigStruct, "")
