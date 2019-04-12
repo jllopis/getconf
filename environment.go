@@ -34,9 +34,9 @@ func getEnv(envPrefix, flagName, keyDelim string) string {
 	if !strings.HasSuffix(envPrefix, "_") {
 		envPrefix += "_"
 	}
-	flagName = strings.Replace(flagName, ".", "_", -1)
 	flagName = strings.Replace(flagName, "-", "_", -1)
 	flagName = strings.Replace(flagName, keyDelim, "__", -1)
+	flagName = strings.Replace(flagName, ".", "_", -1)
 	envKey := strings.ToUpper(envPrefix + flagName)
 
 	return os.Getenv(envKey)
