@@ -1,3 +1,4 @@
 package getconf
 
-const Version = "v0.5.1"
+// Version holds the current version number
+const Version = "v2.0.0-alpha"
