@@ -177,6 +177,7 @@ func (s *ConsulBackend) Watch(ctx context.Context, key string) (<-chan []byte, e
 	return respChan, nil
 }
 
+// Copyright 2014-2016 Docker, Inc.
 // WatchTree listens for changes on a "tree".
 // It returns a channel that will receive changes or pass on errors.
 // When created, the current values will be sent to the channel.
