@@ -45,7 +45,7 @@ To start using _getconf_ is really simple:
    where `LoaderOptions` is a struct to provide some data to `GetConf`:
      * `ConfigStruct interface{}` will carry the defined config struct. **This is mandatory**
      * `SetName string` is the name for the _Options Set_ used in a remote config server
-     * `EnvPrefix string` sets the prefix prepended to the variable names in the environment (to preven collisions)
+     * `EnvPrefix string` sets the prefix prepended to the variable names in the environment (to prevent collisions)
      * `KeyDelim string` sets the delimiter string to allow for embedded configuration _structs_
 4. Now, the environment and flags are parsed for any of the config variables values
 6. Use the variables through the **Get** methods provided
@@ -59,13 +59,19 @@ conf.EnableKVStore(&getconf.KVOptions{
 	URLs:    []string{"127.0.0.1:8500"},
 	KVConfig: &getconf.Config{
 		ConnectionTimeout: 10 * time.Second,
-		Bucket:            "test",
 		PersistConnection: true,
+		Prefix:            "/settings/apps",
+		Bucket:            "test",
 	},
 })
 ```
 
-The **KVConfig** struct holds the configuration options specific to the backend.
+The **KVConfig** struct holds the configuration options specific to the backend. Supported options:
+
+* `ConnectionTimeout`: limits how long a Watch will block
+* `PersistConnection`: not used
+* `Prefix`: the path **before** the `setName`. Allows group of configs
+* `Bucket`: the path **after** the `setName`. Allows versioning of the app config
 
 ### Trivial use case
 
@@ -236,7 +242,7 @@ import (
 type Config struct {
 	Server struct {
 		Host string `getconf:", default: localhost, info: this is the hostname"`
-		Port int    `getconf:"default-port, info: service port"`
+		Port int    `getconf:"default-port, default: 8500, info: service port"`
 	}
 	Debug    bool   `getconf:"debug, default: false, info: enable debug logging"`
 	IgnoreMe string `getconf:"-"`
@@ -260,9 +266,9 @@ func main() {
 		// URLs: []string{"localhost:8500"},
 		KVConfig: &backend.Config{
 			ConnectionTimeout: 10 * time.Second,
-			Bucket:            "/settings/apps",
+			Prefix:            "/settings/apps",
 			PersistConnection: true,
-			Prefix:            "v1",
+			Bucket:            "v1",
 		},
 	}); err != nil {
 		log.Panicf("cannot get bind to kv store. getconf error: %v\n", err)
