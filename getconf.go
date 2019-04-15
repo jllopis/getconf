@@ -103,6 +103,10 @@ func Load(lo *LoaderOptions) {
 		g2.envPrefix = lo.EnvPrefix
 	}
 
+	if lo.SetName != "" {
+		g2.setName = lo.SetName
+	}
+
 	g2.options = make(map[string]*Option)
 	// Parse client struct
 	g2.parseStruct(lo.ConfigStruct, "")
