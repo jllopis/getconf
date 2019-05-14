@@ -1,9 +1,4 @@
 package getconf
 
-const (
-	VERSION = "v0.5.1"
-)
-
-func Version() string {
-	return VERSION
-}
+// Version holds the current version number
+const Version = "v2.0.0-alpha"

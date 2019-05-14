@@ -1,27 +1,3 @@
-// Package getconf load the variables to be used in a program from different sources:
-//
-//   1. Environment variables
-//   2. command line
-//   3. remote server (consul, etcd)
-//
-// This is also the precedence order.
-//
-// The package know about the options by way of a struct definition that must be passed.
-//
-// Example:
-//
-//    type Config struct {
-//        key1 int,
-//        key2 string
-//    }
-//    config := getconf.New("default", &Config{})
-//    fmt.Printf("Key1 = %d\nKey2 = %s\n", config.Get(key1), config.GetString(key2))
-//
-// The default names and behaviour can be modified by the use of defined tags in the variable
-// declaration. This way you can state if a var have to be watched for changes in etcd or
-// if must be ignored for example. Also it is possible to define the names to look for.
-// As the package parse the command line options, it should be called at the program start,
-// it must be the first action to call.
 package getconf
 
 import (
@@ -30,31 +6,62 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/jllopis/getconf/backend"
 )
 
+// g2 is the static GetConf to be used directly by the user
+var g2 *GetConf
+
 var (
 	ErrNotStructPointer    = errors.New("initializer is not a pointer to struct")
 	ErrUninitializedStruct = errors.New("uninitialized struct")
 	ErrKeyNotFound         = errors.New("key not found")
 	ErrValueNotString      = errors.New("value is not of type string")
-
-	setName string
 )
 
+func init() {
+	// Create with default, hopefully safe, values
+	g2 = &GetConf{
+		setName:   "gcv2",
+		envPrefix: "GCV2",
+		keyDelim:  "::",
+	}
+}
+
+// GetConf defines the main elements to appropiately configure getconf
+type GetConf struct {
+	kvStore   backend.Backend
+	options   map[string]*Option
+	setName   string
+	envPrefix string
+	keyDelim  string
+	kvPrefix  string // ej: "/settings/apps"
+	kvBucket  string // ej: "v1"
+}
+
+// Option holds the data needed to manage the variables in getconf
+// Option is the struct that holds information about the Option
 type Option struct {
 	name      string       // name as it appears on command line
-	usage     string       // help message
 	oType     reflect.Kind // type of the option
 	value     interface{}  // value as set
 	defValue  string       // default value (as text); for usage message
+	usage     string       // help message
 	lastSetBy string       // last loader that has set the value
 	updatedAt time.Time    // updated timestamp
+	mu        sync.RWMutex // will keep concurrent acces safe. It is set per Option so a single operation do not block the full config set
+}
+
+// LoaderOptions holds the options that getconf will use to manage
+// the configuration Options
+type LoaderOptions struct {
+	ConfigStruct interface{}
+	SetName      string
+	EnvPrefix    string
+	KeyDelim     string
 }
 
 // Option implements flag.Value
@@ -62,321 +69,163 @@ func (o *Option) String() string {
 	return fmt.Sprintf("%v", o.value)
 }
 
+// Set sets the value of the Option
 func (o *Option) Set(s string) error {
 	o.value = s
 	return nil
 }
 
+// IsBoolFlag returns true if the Options is of type Bool or false otherwise
 func (o *Option) IsBoolFlag() bool {
 	return o.oType == reflect.Bool
 }
 
-type GetConf struct {
-	KVStore backend.Backend
-	options map[string]*Option
-	mu      sync.RWMutex
+// GetSetName returns the name of the set used to store the options in a Backend
+func GetSetName() string { return g2.GetSetName() }
+func (gc *GetConf) GetSetName() string {
+	return gc.setName
 }
 
-type GetConfOptions struct {
-	ConfigStruct interface{}
-	SetName      string
-	EnableEnv    bool
-	EnableFlag   bool
-	EnvPrefix    string
-}
-
-// env then flags then remote (etcd, consul)
-func New(setName string, clientStruct interface{}) *GetConf {
-	opts := &GetConfOptions{ConfigStruct: clientStruct, EnableFlag: true}
-	if setName != "" {
-		opts.SetName = setName
-		opts.EnableEnv = true
-		opts.EnvPrefix = setName
-	}
-	g := NewWithOptions(opts)
-	return g
-}
-
-func NewWithOptions(opts *GetConfOptions) *GetConf {
-	setName = opts.SetName
-	g := &GetConf{}
-	elem := reflect.ValueOf(opts.ConfigStruct).Elem()
-	if elem.Kind() == reflect.Invalid {
-		return g
-	}
-	if elem.Kind() != reflect.Struct {
-		return g
+// Load will read the configuration options and keep a references in its own struct.
+// The Options must be accessed through the provided methods and values will not be
+// binded to the provided config struct.
+//
+// The variables will be read in the following order:
+//   1. Environment variables
+//   2. command line flags
+//   3. remote server (consul)
+func Load(lo *LoaderOptions) {
+	if lo.KeyDelim != "" {
+		g2.keyDelim = lo.KeyDelim
 	}
 
-	g.options = make(map[string]*Option)
+	if lo.EnvPrefix != "" {
+		g2.envPrefix = lo.EnvPrefix
+	}
+
+	if lo.SetName != "" {
+		g2.setName = lo.SetName
+	}
+
+	g2.options = make(map[string]*Option)
 	// Parse client struct
-	if err := g.parseStruct(elem); err != nil {
-		return g
-	}
-
-	// Check env
-	if opts.EnableEnv {
-		loadFromEnv(g, opts)
-	}
-
-	// Register flags in flagSet and parse it
-	if opts.EnableFlag {
-		flagConfigSet := flag.NewFlagSet(opts.SetName, flag.ContinueOnError) //  flag.ExitOnError
-		for _, o := range g.options {
-			flagConfigSet.Var(o, o.name, o.usage)
-		}
-		flagConfigSet.Parse(os.Args[1:])
-		flagConfigSet.Visit(g.setConfigFromFlag)
-	}
-
-	return g
+	g2.parseStruct(lo.ConfigStruct, "")
+	loadFromEnv()
+	g2.loadFromFlags()
 }
 
-func (g *GetConf) GetSetName() string {
-	return setName
-}
+// BindStruct will set the given struct fields to the values that exists in
+// the getConf object.
+// func (gc *getConf) BindStruct(s interface{}) error {
+// 	return nil
+// }
 
-// parseStruct parses the struct provided and load the options array in the GetConf object
-func (g *GetConf) parseStruct(s reflect.Value) error {
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Type().Field(i)
-		o := &Option{name: f.Name,
-			oType: s.Field(i).Kind(),
-		}
-		tag := f.Tag
-		if t := tag.Get("getconf"); t != "" {
-			err := parseTags(o, t)
-			if err != nil && err.Error() == "untrack" {
-				//log.Printf("getconf.parse: option %s not tracked!", o.name)
+// parseStruct parses the config struct and set the options from it, using prefix to
+// name nested variables.
+func (gc *GetConf) parseStruct(s interface{}, prefix string) {
+	x := indirect(s)
+	elem := reflect.ValueOf(x)
+	for i := 0; i < elem.NumField(); i++ {
+		fieldValue := elem.Field(i)
+		fieldType := elem.Type().Field(i)
+		if fieldValue.Kind() == reflect.Struct {
+			switch fieldValue.Interface().(type) {
+			case time.Time:
+				opt := new(Option)
+				err := parseTags(fieldType, opt, prefix)
+				if err != nil && err.Error() == "untrack" {
+					continue
+				}
+				g2.options[opt.name] = opt
 				continue
 			}
+			opt := new(Option)
+			err := parseTags(fieldType, opt, prefix)
+			if err != nil && err.Error() == "untrack" {
+				continue
+			}
+			g2.parseStruct(fieldValue.Interface(), opt.name+g2.keyDelim)
+			continue
+		} else {
+			opt := new(Option)
+			err := parseTags(fieldType, opt, prefix)
+			if err != nil && err.Error() == "untrack" {
+				continue
+			}
+			g2.options[opt.name] = opt
 		}
-		g.options[o.name] = o
 	}
-	return nil
 }
 
-func (g *GetConf) setConfigFromFlag(f *flag.Flag) {
-	g.setOption(f.Name, f.Value.String(), "flag")
-}
-
-func (g *GetConf) setOption(name, value, setBy string) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	g.options[name].value = getTypedValue(value, g.options[name].oType)
-	g.options[name].updatedAt = time.Now().UTC()
-	g.options[name].lastSetBy = setBy
+// From html/template/content.go
+// Copyright 2011 The Go Authors. All rights reserved.
+// Returns de Value after dereferencing when needed
+func indirect(a interface{}) interface{} {
+	if a == nil {
+		return nil
+	}
+	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
+		// Avoid creating a reflect.Value if it's not a pointer.
+		return a
+	}
+	v := reflect.ValueOf(a)
+	for v.Kind() == reflect.Ptr && !v.IsNil() {
+		v = v.Elem()
+	}
+	return v.Interface()
 }
 
 // Set adds the value received as the value of the key.
 // If the key does not exist, an error ErrKeyNotFound is returned
-func (g *GetConf) Set(key, value string) error {
+func Set(key, value string) error { return g2.Set(key, value) }
+func (gc *GetConf) Set(key, value string) error {
 	if reflect.TypeOf(value).String() != "string" {
 		return ErrValueNotString
 	}
-	if _, ok := g.options[key]; !ok {
+	if _, ok := g2.options[key]; !ok {
 		return ErrKeyNotFound
 	}
-	g.setOption(key, value, "user")
+	g2.setOption(key, value, "user")
 	return nil
 }
 
-// Get return the value associated to the key
-func (g *GetConf) Get(key string) interface{} {
-	if o, ok := g.options[key]; ok != false {
-		return o.value
+// setOption set the option in gc.options that matches name with value.
+//
+// It also set the lastSetBy field to indicate who assigned the current value to the option.
+func (gc *GetConf) setOption(name, value, setBy string) {
+	if _, ok := gc.options[name]; !ok {
+		return
 	}
-	return nil
+	gc.options[name].mu.Lock()
+	defer gc.options[name].mu.Unlock()
+
+	gc.options[name].value = getTypedValue(value, gc.options[name].oType)
+	gc.options[name].updatedAt = time.Now().UTC()
+	gc.options[name].lastSetBy = setBy
 }
 
-// GetString will return the value associated to the key as a string
-func (g *GetConf) GetString(key string) string {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(string)
-	}
-	return ""
-}
-
-func (g *GetConf) GetTime(key string) time.Time {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(time.Time)
-	}
-	return time.Time{}
-}
-
-// GetInt will return the value associated to the key as an int
-func (g *GetConf) GetInt(key string) (int, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(int), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetInt8 will return the value associated to the key as an int8
-func (g *GetConf) GetInt8(key string) (int8, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(int8), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetInt16 will return the value associated to the key as an int16
-func (g *GetConf) GetInt16(key string) (int16, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(int16), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetInt32 will return the value associated to the key as an int32
-func (g *GetConf) GetInt32(key string) (int32, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(int32), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetInt64 will return the value associated to the key as an int64
-func (g *GetConf) GetInt64(key string) (int64, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(int64), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetBool will return the value associated to the key as a bool
-func (g *GetConf) GetBool(key string) (bool, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(bool), nil
-	}
-	return false, errors.New("Key not found")
-}
-
-// GetFloat will return the value associated to the key as a float64
-func (g *GetConf) GetFloat(key string) (float64, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(float64), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetFloat32 will return the value associated to the key as a float32
-func (g *GetConf) GetFloat32(key string) (float32, error) {
-	if val, ok := g.options[key]; ok && val.value != nil {
-		return val.value.(float32), nil
-	}
-	return 0, errors.New("Key not found")
-}
-
-// GetAll return a map with the options and its values
-// The values are of type interface{} so they have to be casted
-func (g *GetConf) GetAll() map[string]interface{} {
-	opts := make(map[string]interface{})
-	for _, x := range g.options {
-		if x.value == nil {
-			continue
-		}
-		opts[x.name] = x.value
-	}
-	return opts
-}
-
-func (g *GetConf) String() string {
+// String implements Stringer
+func String() string { return g2.String() }
+func (gc *GetConf) String() string {
 	var s string
-	for _, o := range g.options {
+	for _, o := range g2.options {
 		s = s + fmt.Sprintf("\tKey: %s, Default: %v, Value: %v, Type: %v, LastSetBy: %v, UpdatedAt: %v\n", o.name, o.defValue, o.value, o.oType, o.lastSetBy, o.updatedAt)
 	}
 	return fmt.Sprintf("CONFIG OPTIONS:\n%s\n", s)
 }
 
-// parseTags read the tags and set the corresponding variables in the Option struct
-func parseTags(o *Option, t string) error {
-	for i, k := range strings.Split(t, ",") {
-		if strings.TrimSpace(k) == "-" {
-			return errors.New("untrack")
-		}
-		kv := strings.SplitN(k, ":", 2)
-		if len(kv) == 1 {
-			if i == 0 {
-				o.name = strings.TrimSpace(kv[0])
-			}
-			continue
-		}
-		switch strings.TrimSpace(kv[0]) {
-		case "default":
-			o.defValue = strings.TrimSpace(kv[1])
-			o.value = getTypedValue(o.defValue, o.oType)
-			o.updatedAt = time.Now().UTC()
-			o.lastSetBy = "default"
-		case "info":
-			o.usage = strings.TrimSpace(kv[1])
-		}
+// loadFromFlags parse the command line flagas and set the options values accordingly
+func (gc *GetConf) loadFromFlags() {
+	// Register flags in flagSet and parse it
+	flagConfigSet := flag.NewFlagSet(gc.setName, flag.ContinueOnError) //  flag.ExitOnError
+	for _, o := range g2.options {
+		flagConfigSet.Var(o, o.name, o.usage)
 	}
-	return nil
+	flagConfigSet.Parse(os.Args[1:])
+	flagConfigSet.Visit(g2.setConfigFromFlag)
 }
 
-func getTypedValue(opt string, t reflect.Kind) interface{} {
-	switch t {
-	case reflect.Int:
-		if value, err := strconv.ParseInt(opt, 10, 0); err == nil {
-			return int(value)
-		}
-		return 0
-	case reflect.Int8:
-		if value, err := strconv.ParseInt(opt, 10, 8); err == nil {
-			return int8(value)
-		}
-		return 0
-	case reflect.Int16:
-		if value, err := strconv.ParseInt(opt, 10, 16); err == nil {
-			return int16(value)
-		}
-		return 0
-	case reflect.Int32:
-		if value, err := strconv.ParseInt(opt, 10, 32); err == nil {
-			return int32(value)
-		}
-		return 0
-	case reflect.Int64:
-		if value, err := strconv.ParseInt(opt, 10, 64); err == nil {
-			return int64(value)
-		}
-		return 0
-	case reflect.Float32:
-		if value, err := strconv.ParseFloat(opt, 32); err == nil {
-			return float32(value)
-		}
-		return 0
-	case reflect.Float64:
-		if value, err := strconv.ParseFloat(opt, 64); err == nil {
-			return value
-		}
-		return 0
-	case reflect.Bool:
-		if value, err := strconv.ParseBool(string(opt)); err == nil {
-			return value
-		}
-		return false
-	case reflect.String:
-		return string(opt)
-	case reflect.Struct:
-		if t, err := time.Parse(time.RFC3339Nano, opt); err == nil {
-			return t
-		}
-		if t, err := time.Parse("2006-01-02T15:04:05", opt); err == nil {
-			return t
-		}
-		if t, err := time.Parse("2006-01-02 15:04:05", opt); err == nil {
-			return t
-		}
-		if t, err := time.Parse("2006-01-02", opt); err == nil {
-			return t
-		}
-
-		if sec, err := strconv.ParseInt(opt, 10, 64); err == nil {
-			return time.Unix(sec, 0)
-		}
-		return time.Time{}
-	}
-	return nil
+// setConfigFromFlag calls setOption to assign the value to an option readed from flags
+func (g2 *GetConf) setConfigFromFlag(f *flag.Flag) {
+	g2.setOption(f.Name, f.Value.String(), "flag")
 }

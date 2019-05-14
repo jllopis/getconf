@@ -22,18 +22,25 @@ var (
 	watchTimeDuration = 15 * time.Second
 )
 
+// ConsulBackend holds the configuration to connect to a Consul backend
 type ConsulBackend struct {
 	sync.Mutex
 	config *api.Config
 	client *api.Client
+	prefix string
+	bucket string
 }
 
+// New create a Consul backend connection with the provided options. It returns the
+// created Backend or an error
 func New(endpoints []string, cnf *backend.Config) (*ConsulBackend, error) {
 	if len(endpoints) > 1 {
 		return nil, ErrMultipleEndpointsUnsupported
 	}
 
 	s := &ConsulBackend{}
+	s.prefix = cnf.Prefix
+	s.bucket = cnf.Bucket
 
 	// Create Consul client
 	config := api.DefaultConfig()
@@ -60,6 +67,20 @@ func New(endpoints []string, cnf *backend.Config) (*ConsulBackend, error) {
 
 	return s, nil
 }
+
+// SetPrefix sets the prefix that will be used when building the key to query the backend.
+// This is the part that sits between the setName and the key: bucket/setName/prefix/key
+func (s *ConsulBackend) SetPrefix(p string) { s.prefix = p }
+
+// SetBucket sets the bucket that will be used when building the key to query the backend.
+// This is the first part of the key, at the beginning: bucket/setName/prefix/key
+func (s *ConsulBackend) SetBucket(b string) { s.bucket = b }
+
+// GetPrefix return the defined prefix in the backend
+func (s *ConsulBackend) GetPrefix() string { return s.prefix }
+
+// GetBucket return the defined bucket in the backend
+func (s *ConsulBackend) GetBucket() string { return s.bucket }
 
 // SetTLS sets Consul TLS options
 func (s *ConsulBackend) setTLS(tls *tls.Config) {
@@ -133,6 +154,9 @@ func (s *ConsulBackend) List(ctx context.Context, key string) ([]*backend.KVPair
 func (s *ConsulBackend) Watch(ctx context.Context, key string) (<-chan []byte, error) {
 	respChan := make(chan []byte, 0)
 	keypair, meta, err := s.client.KV().Get(key, nil)
+	if err != nil {
+		return nil, err
+	}
 	if keypair == nil && err == nil {
 		return nil, backend.ErrKeyNotFound
 	}
@@ -165,6 +189,7 @@ func (s *ConsulBackend) Watch(ctx context.Context, key string) (<-chan []byte, e
 	return respChan, nil
 }
 
+// Copyright 2014-2016 Docker, Inc.
 // WatchTree listens for changes on a "tree".
 // It returns a channel that will receive changes or pass on errors.
 // When created, the current values will be sent to the channel.
