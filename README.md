@@ -612,6 +612,7 @@ type ClientTLSConfig struct {
 
 # Similar projects
 
+- [moorara/konfig](https://github.com/moorara/konfig)
 - [stevenroose/gonfig](https://github.com/stevenroose/gonfig)
 - [kelseyhightower/confd](https://github.com/kelseyhightower/confd)
 - [spf13/viper](https://github.com/spf13/viper)
